@@ -194,7 +194,11 @@ class ShallowWaterModel :
 
             # store a few key parameters
             #
-            # (ADD CORE HERE TO SAVED IMPORTANT PARAMETERS IN NC FILES)
+            params = [ 'rho', 'tau0', 'dt', 'nu_lap', 'nu_bih', 'lat0', 'f0', 'beta', 'H', 'c_D',
+                       'Nx', 'Ny', 'dx', 'dy' ]
+
+            for p in params:
+
 
 
 
