@@ -10,9 +10,10 @@ Tom Bolton
 
 Important departures from the original model:
 
-- Only free-slip and RK4 are implemented to reduce amount of code.
+- Only RK4 is implemented to reduce amount of code.
 - All global variables are removed.
-- The data type is now float64 for all variables for simplicity.
+- The data type is float64 for all variables for simplicity.
+- Model is free-slip only.
 
 """
 
@@ -79,8 +80,13 @@ class ShallowWaterModel :
         self.set_coriolis();           print("--> Coriolis calculated.")
         self.set_viscosity();          print("--> Viscosity initialised.")
         self.set_forcing();            print("--> Wind forcing calculated")
-        self.config_output();          print("--> Configure output settings.")
         self.set_timestep();           print("--> Time-step calculated.")
+
+        # initialise all operators of the model
+
+        # only configure output if needed
+        if output : self.config_output();    print("--> Configured output settings.")
+
 
 
     def init_grid(self) :
@@ -178,6 +184,36 @@ class ShallowWaterModel :
         self.dt = np.floor( ( 0.9 * min( self.dx, self.dy ) ) / self.c_phase )  # time-step (s)
         self.N_iter = np.ceil( ( self.Nt * 3600.0 * 24.0 ) / self.dt )          # number of iterations/time-steps
 
+    def set_initial_cond(self, path_to_init_data=None, u_file=None, v_file=None, eta_file=None ) :
+        """
+        Initialise the prognostic variables of the model either
+        from rest, or from existing nc files for u, v and eta
+
+        :param path_to_init_data: path to directory containing init data
+        :param u_file: filename of .nc file with u data
+        :param v_file: filename of .nc file with v data
+        :param eta_file: filename of .nc file with eta data
+        :return: u_0, v_0, eta_0
+        """
+
+        if self.init == 'rest' :
+
+            u_0 = np.zeros( self.Nu )
+            v_0 = np.zeros( self.Nv )
+            eta_0 = np.zeros( self.NT )
+            self.t0 = 0
+
+        elif self.init == 'file' :
+
+            # load from .nc file
+            u_0 = Dataset( path_to_init_data + u_file )
+            v_0 = Dataset( path_to_init_data + v_file )
+            eta_0 = Dataset( path_to_init_data + eta_file )
+
+        return u_0, v_0, eta_0
+
+
+
     def config_output(self) :
         """
         Configure where to saved model output and initialise the nc-files.
@@ -197,12 +233,119 @@ class ShallowWaterModel :
             params = [ 'rho', 'tau0', 'dt', 'nu_lap', 'nu_bih', 'lat0', 'f0', 'beta', 'H', 'c_D',
                        'Nx', 'Ny', 'dx', 'dy' ]
 
-            for p in params:
+            ############################################
+            # !                   !                    !
+            # ADD CODE HERE TO SAVE OUTPUT AS NC FILES !
+            # !                   !                    !
+            ############################################
 
+    ####################################################################################################################
+    #
+    # OPERATORS
+    #
+    ####################################################################################################################
 
+    def init_grad_matrices(self) :
+        """
+        The paradigm of this model is to reshape all prognostic
+        variables (u,v,eta) as 1D vectors, and then gradients of
+        those variables can be calculated by simply acting on the
+        1D vector with a 2D matrix.
 
+        The elements of each gradient matrix will encode the stencils
+        used to estimate each derivative.
 
+        G          ->   shorthand for gradient
+        T,u,v,q    ->   grid on which gradient is being taken
+        x,y        ->   axis along which gradient is calculated
 
+        E.g. GTx is the x-derivative on the T-grid.
+
+        Overall, we need:
+
+        Gux, Guy
+        Gvx, Gvy
+        GTx, GTy
+        Gqx, Gqy
+
+        """
+
+        # index used to delete the rows that correspond to a derivative
+        # across the east-west boundaries, i.e., to remove the periodicty
+        indx1 = list( range( self.NT ) )
+        indx2 = list( range( self.Nv + self.Ny - 1 ) )
+
+        del indx1[ ( self.Nx - 1 )::self.Nx ]
+        del indx2[ self.Nx::( self.Nx + 1 ) ]
+
+        ##### 1st order gradients #####
+
+        self.GTx = ( sparse.diags( np.ones( self.NT - 1), 1 )
+                   - sparse.eye( self.NT ) )[indx1,:] / self.dx        # d/dx from T to u grid
+
+        self.GTy = ( sparse.diags( np.ones( self.Nv ), self.Nx )
+                   - sparse.eye( self.NT ) )[:-self.Nx,:] / self.dy    # d/dy from T to v grid
+
+        self.Gux = - self.GTx.T.tocsr()      # d/dx from u to T grid
+        self.Guy = - self.GTy.T.tocsr()      # d/dy from v to T grid
+
+        # d/dy from u to q grid
+        d1 = np.ones( self.Nq )
+        d1[::(self.Nx+1)] = 0           # du/dy = 0 at western boundary
+        d1[self.Nx::(self.Nx+1)] = 0    # du/dy = 0 at eastern boundary
+        indx3 = ( d1 != 0 )             # the index to remove unnecessary columns
+        d1[-self.Nx:-1] = self.bc       # north and south boundary conditions
+
+        Guy1 = sparse.diags(d1,0).tocsr()[:,indx3][:,self.Nx-1:]
+        Guy2 = sparse.diags(d1[::-1],0).tocsr()[:,indx3][:,:-(self.Nx-1)]  # fliplr and flipud of Guy1
+
+        self.Guy = ( Guy2 - Guy1 ) / self.dy
+
+        # d/dx from v to q grid
+        sj = self.Nv + self.Ny - 1      # shape of Gvx in j-direction
+        d2 = np.ones(sj)                # set up the diagonal
+        d2[::(self.Nx+1)] = self.bc     # east and west boundary condition
+
+        self.Gvx = ( sparse.dia_matrix( (d2,-(self.Nx+1)), shape=( (self.Nq,sj) ) ).tocsr()[:,indx2]
+                   + sparse.dia_matrix( (-d2[::-1],-(self.Nx+1) ), shape=( (self.Nq,sj))).tocsr()[:,-np.array(indx2)[::-1]-1]
+                     ) / self.dx
+
+        # d/dy from q to u grid
+        d1[-self.Nx:-1] = 1
+        Gqy1 = sparse.diags(d1,0).tocsr()[:,indx3][:,self.Nx-1:]
+        Gqy2 = sparse.diags(d1[::-1],0).tocsr()[:,indx3][:,:-(self.Nx-1)]  # fliplr and flipud of Gqy1
+        self.Gqy = ( Gqy1 - Gqy2 ).T.tocsr() / self.dy
+
+        # d/dx from q to v grid (make use of Gvx)
+        d2[::(self.Nx+1)] = 1
+        self.Gqx = ( sparse.dia_matrix((d2, -(self.Nx+1)), shape=((self.Nq,sj))).tocsr()[:, indx2] +
+                     sparse.dia_matrix((-d2[::-1], -(self.Nx+1)), shape=((self.Nq, sj))).tocsr()[:, -np.array(indx2)[::-1] - 1]
+                    ) / self.dx
+        self.Gqx = - self.Gqx.T.tocsr()
+
+    def set_lapl_matrices(self) :
+        """
+        Constructs the horizontal Laplacian (harmonic diffusion)
+        and also the biharmonic diffusion operator LL.
+        """
+
+        # harmonic operators
+        self.Lu = self.GTx.dot( self.Gux ) + self.Gqy.dot( self.Guy )
+        self.Lv = self.Gqx.dot( self.Gvx ) + self.GTy.dot( self.Gvy )
+        self.LT = self.Gux.dot( self.GTx ) + self.Gvy.dot( self.GTy )
+        self.Lq = self.Gvx.dot( self.Gqx ) + self.Guy.dot( self.Gqy )
+
+        # biharmonic operators
+        self.LLu = self.Lu.dot( self.Lu )
+        self.LLv = self.Lv.dot( self.Lv )
+        self.LLT = self.LT.dot( self.LT )
+        self.LLq = self.Lq.dot( self.Lq )
+
+    def set_interp_matrices(self) :
+        """
+        Construct all 2- or 4-point interpolation
+        between the u, v, T and q grids.
+        """
 
 
 
