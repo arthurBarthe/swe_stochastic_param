@@ -34,7 +34,7 @@ class ShallowWaterModel :
     This class contains the following major sections of functions:
 
     - Initialisation (setting parameters and grid).
-    - Operators (mainly for taking derivatives).
+    - Operators (for taking derivatives and interpolating).
     - Integration (running the model).
 
     """
@@ -308,7 +308,7 @@ class ShallowWaterModel :
 
         self.Gvx = ( sparse.dia_matrix( (d2,-(self.Nx+1)), shape=( (self.Nq,sj) ) ).tocsr()[:,indx2]
                    + sparse.dia_matrix( (-d2[::-1],-(self.Nx+1) ), shape=( (self.Nq,sj))).tocsr()[:,-np.array(indx2)[::-1]-1]
-                     ) / self.dx
+                    ) / self.dx
 
         # d/dy from q to u grid
         d1[-self.Nx:-1] = 1
@@ -343,9 +343,188 @@ class ShallowWaterModel :
 
     def set_interp_matrices(self) :
         """
-        Construct all 2- or 4-point interpolation
+        Construct all 2- or 4-point interpolation matrices
         between the u, v, T and q grids.
+
+        I   -> shorthand for interpolation matrix
+
+        E.g. Iuv is the interpolation matrix from u- to v-grid
+
         """
+
+        # index used to delete the rows that correspond to
+        # an interpolation across the east-west boundaries,
+        # i.e. to remove the periodicity in x
+        indx1 = list( range( self.Nv + self.Nx ) );      del indx1[ ( self.Nx - 1 )::self.Nx ]
+        indx2 = list( range( self.NT + self.Ny - 1 ) );  del indx2[ self.Nx::( self.Nx + 1 ) ]
+
+        # interpolate v-points to u-points, 4-point average
+        # including the information of the kinematic boundary condition
+        d = np.ones( self.Nv ) / 4.  # diagonal
+        self.Ivu = ( sparse.dia_matrix( (d, 0), shape=( self.Nv + self.Nx, self.Nv ) ) +
+                     sparse.dia_matrix( (d, 1), shape=( self.Nv + self.Nx, self.Nv ) ) +
+                     sparse.dia_matrix( (d, -self.Nx + 1), shape=( self.Nv + self.Nx, self.Nv ) ) +
+                     sparse.dia_matrix( (d, -self.Nx), shape=( self.Nv + self.Nx, self.Nv ) ) )[indx1, :]
+
+        # interpolate u-points to v-points, 4-point average
+        # including the information of the kinematic boundary condition
+        self.Iuv = self.Ivu.T
+
+        # interpolate q-points to T-points, 4-point average
+        d = np.ones( self.Nq + self.Ny - 1 ) / 4.  # diagonal
+        self.IqT = ( sparse.dia_matrix( (d, 0), shape=( ( self.NT + self.Ny - 1, self.Nq ) ) ) +
+                     sparse.dia_matrix( (d, 1), shape=( ( self.NT + self.Ny - 1, self.Nq ) ) ) +
+                     sparse.dia_matrix( (d, self.Nx + 1), shape=( ( self.NT + self.Ny - 1, self.Nq ) ) ) +
+                     sparse.dia_matrix( (d, self.Nx + 2), shape=( ( self.NT + self.Ny - 1, self.Nq ) ) ) )[indx2, :]
+
+
+        self.IuT = abs( self.Gux * self.dx / 2.)   # interpolate u-points to T-points, 2-point average
+        self.IvT = abs( self.Gvy * self.dy / 2.)   # interpolate v-points to T-points, 2-point average
+        self.ITu = abs( self.GTx * self.dx / 2.)   # interpolate T-points to u-points, 2-point average
+        self.ITv = abs( self.GTy * self.dy / 2.)   # interpolate T-points to v-points, 2-point average
+
+        # interpolate q-points to u-points, 2-point average
+        d = np.ones( self.Nq ) / 2.
+        indx3 = list( range( self.Nq - self.Nx - 1) ); del indx3[::(self.Nx + 1)]; del indx3[self.Nx - 1::self.Nx]
+        self.Iqu = ( sparse.dia_matrix( (d, 0), shape=( ( self.Nq - self.Nx - 1, self.Nq ) ) ) +
+                     sparse.dia_matrix(( d, self.Nx + 1), shape=( ( self.Nq - self.Nx - 1, self.Nq ) ) ) )[indx3, :]
+
+        # interpolate u-points to q-points, 2-point average
+        # include lateral boundary condition information in Iqu.T
+        self.Iuq = self.Iqu.T.tocsr().copy()
+        self.Iuq.data[:self.Nx - 1] = 1 - self.bc / 2.
+        self.Iuq.data[-self.Nx + 1:] = 1 - self.bc / 2.
+
+        # interpolate q-points to v-points, 2-point average
+        # same diagonal d as for Iqu, reuse
+        indx4 = list( range( self.Nv + self.Ny - 2) ); del indx4[self.Nx::(self.Nx + 1)]
+        self.Iqv = ( sparse.dia_matrix( (d, self.Nx + 1), shape=( ( self.Nv + self.Ny - 2, self.Nq ) ) ) +
+                     sparse.dia_matrix( (d, self.Nx + 2), shape=( ( self.Nv + self.Ny - 2, self.Nq ) ) ) )[indx4, :]
+
+        # interpolate v-points to q-points, 2-point average
+        # include lateral boundary condition information in Iqv.T
+        self.Ivq = self.Iqv.T.tocsr().copy()
+        self.Ivq.data[::2 * self.Nx] = 1 - self.bc / 2.
+        self.Ivq.data[::-2 * self.Nx] = 1 - self.bc / 2.
+
+        # interpolate T-points to q-points, copy T points to ghost points (no h gradients across boundaries)
+        # data vector with entries increased by *2,*4 for ghost-point copy
+        # equivalently: ITq.sum(axis=1) must be 1 in each row.
+        d = np.ones(4 * self.NT ) / 4.
+        d[1:2 * self.Nx - 1] = .5
+        d[-2 * self.Nx + 1:-1] = .5
+        d[2 * self.Nx:-2 * self.Nx - 1:4 * self.Nx] = .5
+        d[2 * self.Nx + 1:-2 * self.Nx - 1:4 * self.Nx] = .5
+        d[-2 * self.Nx - 1:2 * self.Nx:-4 * self.Nx] = .5
+        d[-2 * self.Nx - 2:2 * self.Nx:-4 * self.Nx] = .5
+        d[[0, 2 * self.Nx - 1, -(2 * self.Nx), -1]] = 1
+
+        self.ITq = sparse.csr_matrix( self.IqT.T )
+        self.ITq.data = d
+
+    def h2mat(self,eta) :
+        return eta.reshape( ( self.Ny, self.Nx ) )
+
+    def u2mat(self,u) :
+        return u.reshape( ( self.Ny, self.Nx-1 ) )
+
+    def v2mat(self,v) :
+        return v.reshape( ( self.Ny-1, self.Nx ) )
+
+    def q2mat(self,q) :
+        return q.reshape( ( self.Ny+1, self.Nx+1 ) )
+
+    def set_arakawa_matrices(self) :
+        """
+        Set up the linear combinations of potential vorticity as in
+        Arakawa and Lamb 1981.
+        """
+
+        d = np.ones( self.Nq + self.Ny - 1 ) / 24.  # data vector
+        indx1 = list( range( self.Nq - self.Nx - 1 ) );  del indx1[self.Nx::(self.Nx + 1)]
+        self.AL1 = ( sparse.dia_matrix( (2 * d, 0), shape=( self.Nq + self.Nx, self.Nq ) ) +
+                     sparse.dia_matrix( (d, 1), shape=( self.Nq + self.Nx, self.Nq ) ) +
+                     sparse.dia_matrix( (d, self.Nx + 1), shape=( self.Nq + self.Nx, self.Nq ) ) +
+                     sparse.dia_matrix( (2 * d, self.Nx + 2), shape=( self.Nq + self.Nx, self.Nq ) ) )[indx1, :]
+
+        self.indx_au = slice( -self.Nx )
+        self.indx_du = slice( self.Nx, None )
+        self.indx_av = list( range( self.Nx ** 2 ) );           del self.indx_av[self.Nx - 1::self.Nx]
+        self.indx_dv = list( range( 1, self.Nx ** 2 + 1 ) );    del self.indx_dv[ self.Nx - 1::self.Nx]
+        self.indx_av = np.array( self.indx_av )  # convert to numpy array for speed up
+        self.indx_dv = np.array( self.indx_dv )
+
+        AL2 = ( sparse.dia_matrix( (d, 0), shape=( self.Nq + self.Nx, self.Nq ) ) +
+                sparse.dia_matrix( (2 * d, 1), shape=( self.Nq + self.Nx, self.Nq ) ) +
+                sparse.dia_matrix( (2 * d, self.Nx + 1), shape=( self.Nq + self.Nx, self.Nq ) ) +
+                sparse.dia_matrix( (d, self.Nx + 2), shape=( self.Nq + self.Nx, self.Nq ) ) )[indx1, :]
+
+        self.indx_bu = self.indx_du
+        self.indx_cu = self.indx_au
+        self.indx_bv = self.indx_dv
+        self.indx_cv = self.indx_av
+
+
+        indx2 = list( range( self.NT + self.Ny - 1 ) );   del indx2[self.Nx::(self.Nx + 1)];   del indx2[self.Nx - 1::self.Nx]
+        self.ALeur = ( sparse.dia_matrix( (d, 0), shape=( self.NT + self.Ny - 1, self.Nq ) ) +
+                       sparse.dia_matrix( (d, 1), shape=( self.NT + self.Ny - 1, self.Nq ) ) +
+                       sparse.dia_matrix( (-d, self.Nx + 1), shape=( self.NT + self.Ny - 1, self.Nq ) ) +
+                       sparse.dia_matrix( (-d, self.Nx + 2), shape=( self.NT + self.Ny - 1, self.Nq ) ) )[indx2, :]
+
+        # ALeul is the epsilon linear combination to the left of the associated u-point
+        indx3 = list( range( self.NT + self.Ny - 1) );   del indx3[self.Nx::(self.Nx + 1)];   del indx3[::self.Nx]
+        self.ALeul = ( sparse.dia_matrix( (-d, 0), shape=( self.NT + self.Ny - 1, self.Nq ) ) +
+                       sparse.dia_matrix( (-d, 1), shape=( self.NT + self.Ny - 1, self.Nq ) ) +
+                       sparse.dia_matrix( (d, self.Nx + 1), shape=( self.NT + self.Ny - 1, self.Nq ) ) +
+                       sparse.dia_matrix( (d, self.Nx + 2), shape=( self.NT + self.Ny - 1, self.Nq ) ) )[indx3, :]
+
+        # Seur, Seul are shift-matrices so that the correct epsilon term is taken for the associated u-point
+        ones = np.ones( self.Nu )
+        ones[::(self.Nx - 1)] = 0
+        self.Seur = sparse.dia_matrix( (ones, 1), shape=( self.Nu, self.Nu ) ).tocsr()
+        self.Seul = self.Seur.T.tocsr()
+
+        # Shift matrices for the a,b,c,d linear combinations
+        ones = np.ones( self.Nu + self.Ny)
+        indx4 = list( range( self.Nv + self.Nx ) );   del indx4[(self.Nx - 1)::self.Nx]
+
+        self.Sau = sparse.dia_matrix( (ones, 1), shape=( self.Nu + self.Ny, self.Nv ) ).tocsr()[indx4, :]
+        self.Scu = sparse.dia_matrix( (ones, 0), shape=( self.Nu + self.Ny, self.Nv ) ).tocsr()[indx4, :]
+        self.Sbu = sparse.dia_matrix( (ones, -( self.Nx - 1)), shape=( self.Nu + self.Ny, self.Nv ) ).tocsr()[indx4, :]
+        self.Sdu = sparse.dia_matrix( (ones, -self.Nx ), shape=( self.Nu + self.Ny, self.Nv ) ).tocsr()[indx4, :]
+
+        ## V-component of advection
+        # ALpvu is the p linear combination, up
+        indx5 = list( range( self.Nq - self.Nx - 1) );   del indx5[self.Nx::(self.Nx + 1)];   del indx5[-self.Nx:]
+        self.ALpvu = ( sparse.dia_matrix((-d, 0), shape=( self.Nq, self.Nq ) ) +
+                       sparse.dia_matrix((d, 1), shape=( self.Nq, self.Nq ) ) +
+                       sparse.dia_matrix((-d, self.Nx + 1), shape=( self.Nq, self.Nq ) ) +
+                       sparse.dia_matrix((d, self.Nx + 2), shape=( self.Nq, self.Nq ) ) )[indx5, :]
+
+        # ALpvd is the p linear combination, down
+        indx6 = list( range( self.Nq - self.Nx - 1) );   del indx6[self.Nx::(self.Nx + 1)];   del indx6[:self.Nx]
+        self.ALpvd = ( sparse.dia_matrix( (d, 0), shape=( self.Nq, self.Nq ) ) +
+                       sparse.dia_matrix( (-d, 1), shape=( self.Nq, self.Nq ) ) +
+                       sparse.dia_matrix( (d, self.Nx + 1), shape=( self.Nq, self.Nq ) ) +
+                       sparse.dia_matrix( (-d, self.Nx + 2), shape=( self.Nq, self.Nq ) ) )[indx6, :]
+
+        # associated shift matrix
+        ones = np.ones( self.Nv )
+        self.Spvu = sparse.dia_matrix( ( ones, self.Nx ), shape=( self.Nv, self.Nv ) ).tocsr()
+        self.Spvd = self.Spvu.T.tocsr()
+
+        # Shift matrices for a,b,c,d linear combinations
+        ones = np.ones( self.Nv + self.Nx )
+        indx7 = list( range( self.Nv + self.Nx ) );   del indx7[(self.Nx - 1)::self.Nx]
+
+        self.Sav = sparse.dia_matrix( ( ones, -self.Nx ), shape=( self.Nv + self.Nx, self.Nv ) ).tocsr()[indx7, :].T.tocsr()
+        self.Sbv = sparse.dia_matrix( ( ones, -(self.Nx - 1) ), shape=( self.Nv + self.Nx, self.Nv ) ).tocsr()[indx7, :].T.tocsr()
+        self.Scv = sparse.dia_matrix( (ones, 0), shape=( self.Nv + self.Nx, self.Nv ) ).tocsr()[indx7, :].T.tocsr()
+
+        self.Sdv = sparse.dia_matrix( ( ones, 1 ), shape=( self.Nv + self.Nx, self.Nv) ).tocsr()[indx7, :].T.tocsr()
+
+
+
 
 
 
