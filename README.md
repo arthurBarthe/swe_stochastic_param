@@ -1,31 +1,25 @@
-# Shallow water model
-Shallow water equations solver with finite differences. Arakawa C-grid, Arakawa and Lamb advection scheme, Shchepetkin and O'Brian-like biharmonic diffusion operator. 4th order Runge-Kutta for time integration.
+# Shallow Water Model in Python
 
-A documentation is available at http://www.github.com/milankl/swm/tree/master/docu
+An adaption of the shallow water model found [in this repo](http://www.github.com/milankl/swm), with a detailed documentation found [here](http://www.github.com/milankl/swm/tree/master/docu). A thank you to Milan for writing the original model.
 
-This model is written in python, relies on numpy, scipy and netCDF4.
+As in the original model, the shallow water equations are solved numerically using the Runge-Kutta 4th order method. However, there are some important differences:
 
-This program is free software: you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation, either version 3 of the License, or
-(at your option) any later version.
+* Only free-slip boundary conditions are implemented here.
+* All numerical values are represented as float64.
+* The model is written as a single class in `shallowwater.py`.
 
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
+I made this adaption so I could access and modify multiple instances of the model simultaneously. Exploring different machine learning eddy parameterisations becomes much easier in the class-based approach. 
 
-You should have received a copy of the GNU General Public License
-along with this program.  If not, see <http://www.gnu.org/licenses/>.
+The code below shows how to create and run an instance of the model for a single timestep.
 
-# RUN
+```python
+from shallowwater import ShallowWaterModel
 
-You may want to change settings in swm_param.py before you run the model. Then simply do
+my_model = ShallowWaterModel( init='rest', output=0 )
 
-     python swm_run.py
+u, v, eta = my_model.set_init_cond()
+
+u_new, v_new, eta_new = my_model.integrate_forward( u, v, eta )	
+```
      
-# Energy budget-based backscatter
 
-An implementation of the energy budget-based backscatter as described in Kloewer et al 2018, Ocean Modelling can be found in the separate branch "backscatter".
-
-Copyright (C) 2018,  Milan Kloewer (milan.kloewer@physics.ox.ac.uk, milank.de)

@@ -3,126 +3,9 @@
   <component name="ChangeListManager">
     <list default="true" id="7872bbff-8269-43e9-8093-12c945e72a13" name="Default Changelist" comment="">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/calc/Ro_hist_calc.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/calc/floats/floats_calc.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/calc/floats/floats_calc_meanflow.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/calc/floats/floats_plot.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/calc/floats/floats_plot_bf.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/calc/mean_calc.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/calc/mean_e_calc.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/calc/mean_timeseries_calc.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/calc/misc/ReRo_hist.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/calc/misc/ReRo_hist_plot.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/calc/misc/ReRo_hist_plot_both.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/calc/misc/Re_hist_calc.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/calc/misc/Re_hist_calc_bs.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/calc/misc/Re_hist_calc_bs_old.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/calc/misc/Re_hist_plot.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/calc/misc/c_diss_plot.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/calc/misc/cospec_calc.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/calc/misc/cospec_plot.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/calc/misc/diss_vis.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/calc/misc/final_plots.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/calc/misc/final_plots_titlepic.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/calc/misc/pv_calc.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/calc/misc/pv_plot.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/calc/misc/spec_ens _calc.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/calc/misc/streamf_calc.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/calc/misc/streamfunction.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/calc/misc/taylor_convergence.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/calc/misc/taylor_diagram.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/calc/misc/taylor_diagram_plot.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/calc/misc/tempautocorr.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/calc/misc/tempautocorr_plot.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/calc/misc/tempautocorr_plot_bf.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/calc/misc/trispec.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/calc/misc/trispec_calc.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/calc/misc/trispec_plot.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/calc/power_inout_bs_calc.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/calc/power_inout_calc.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/calc/process/var_subset.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/calc/process/var_subset_e.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/calc/process/var_subset_last.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/calc/spec_calc.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/docu/matvis/.dropbox.attr" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/docu/matvis/AL_stencil1.png" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/docu/matvis/AL_stencil2.png" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/docu/matvis/GTx.png" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/docu/matvis/GTy.png" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/docu/matvis/Gqx.png" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/docu/matvis/Gqy.png" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/docu/matvis/Gux.png" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/docu/matvis/Guy.png" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/docu/matvis/Gvx.png" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/docu/matvis/Gvy.png" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/docu/matvis/ITq.png" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/docu/matvis/ITu.png" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/docu/matvis/ITv.png" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/docu/matvis/IqT.png" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/docu/matvis/Iqu.png" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/docu/matvis/Iqv.png" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/docu/matvis/IuT.png" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/docu/matvis/Iuq.png" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/docu/matvis/Iuv.png" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/docu/matvis/IvT.png" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/docu/matvis/Ivq.png" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/docu/matvis/Ivu.png" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/docu/matvis/LLT.png" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/docu/matvis/LLu.png" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/docu/matvis/LLv.png" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/docu/matvis/LT.png" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/docu/matvis/Lu.png" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/docu/matvis/Lv.png" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/docu/matvis/relative_nodes.png" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/docu/matvis/scripts/forc_vis.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/docu/matvis/scripts/grid_vis.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/docu/matvis/scripts/grid_vis_rel.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/docu/matvis/scripts/matvis.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/docu/swm_documentation.pdf" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/docu/thesis_appendix.pdf" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/docu/thesis_methods.pdf" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/plot/Ro_hist_plot.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/plot/Ro_hist_plot_balu.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/plot/budget_closure.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/plot/energy_timeseries.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/plot/energymap_plot.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/plot/last_timestep_plot.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/plot/mean_e_plot.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/plot/mean_sections_plot.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/plot/plots/Ro_hist.eps" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/plot/plots/Ro_hist_nadiga.pdf" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/plot/plots/bs_timescales.pdf" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/plot/plots/budget_closure.pdf" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/plot/plots/e_mean.png" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/plot/plots/energy_budget_terms.png" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/plot/plots/energy_timeseries.pdf" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/plot/plots/energy_timeseries_ke.eps" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/plot/plots/energymap.png" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/plot/plots/mean_section.pdf" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/plot/plots/power_maps.png" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/plot/plots/power_maps_bs.png" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/plot/plots/power_maps_bs_cntrl.png" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/plot/plots/power_maps_bs_crosssection.png" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/plot/plots/power_maps_bs_strong.png" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/plot/plots/power_maps_bs_weak.png" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/plot/plots/pv_gradient.pdf" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/plot/plots/relvort_snapshot.png" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/plot/plots/spec_eke.eps" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/plot/plots/spec_eke.pdf" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/plot/plots/streamplot.eps" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/plot/powermap_bs_crosssection.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/plot/powermap_plot.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/plot/powermap_plot_bs.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/plot/pv_gradient.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/plot/spec_plot.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/plot/streamplot.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/shallowmodel.py" beforeDir="false" afterPath="$PROJECT_DIR$/shallowwater.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/swm_integration.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/swm_operators.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/swm_output.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/swm_param.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/swm_rhs.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/swm_run.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/README.md" beforeDir="false" afterPath="$PROJECT_DIR$/README.md" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/model_mini_test.py" beforeDir="false" afterPath="$PROJECT_DIR$/tests/model_mini_test.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/shallowwater.py" beforeDir="false" afterPath="$PROJECT_DIR$/shallowwater.py" afterDir="false" />
     </list>
     <option name="EXCLUDED_CONVERTED_TO_IGNORED" value="true" />
     <option name="SHOW_DIALOG" value="false" />
@@ -131,7 +14,25 @@
     <option name="LAST_RESOLUTION" value="IGNORE" />
   </component>
   <component name="FileEditorManager">
-    <leaf SIDE_TABS_SIZE_LIMIT_KEY="300" />
+    <leaf SIDE_TABS_SIZE_LIMIT_KEY="300">
+      <file pinned="false" current-in-tab="true">
+        <entry file="file://$PROJECT_DIR$/shallowwater.py">
+          <provider selected="true" editor-type-id="text-editor">
+            <state relative-caret-position="315">
+              <caret line="47" column="38" selection-start-line="47" selection-start-column="38" selection-end-line="47" selection-end-column="38" />
+              <folding>
+                <marker date="1543333272583" expanded="true" signature="655:657" ph="..." />
+                <marker date="1543333272583" expanded="true" signature="655:661" ph="..." />
+                <marker date="1543333272583" expanded="true" signature="3719:3728" ph="..." />
+                <marker date="1543333272583" expanded="true" signature="7253:7482" ph="..." />
+                <marker date="1543333272583" expanded="true" signature="8107:9711" ph="..." />
+                <marker date="1543333272583" expanded="true" signature="9736:9745" ph="..." />
+              </folding>
+            </state>
+          </provider>
+        </entry>
+      </file>
+    </leaf>
   </component>
   <component name="FileTemplateManagerImpl">
     <option name="RECENT_TEMPLATES">
@@ -148,8 +49,8 @@
       <list>
         <option value="$PROJECT_DIR$/ShallowWater.py" />
         <option value="$PROJECT_DIR$/shallowmodel.py" />
-        <option value="$PROJECT_DIR$/shallowwater.py" />
         <option value="$PROJECT_DIR$/model_mini_test.py" />
+        <option value="$PROJECT_DIR$/shallowwater.py" />
       </list>
     </option>
   </component>
@@ -182,7 +83,7 @@
     </panes>
   </component>
   <component name="PropertiesComponent">
-    <property name="settings.editor.selected.configurable" value="preferences.keymap" />
+    <property name="settings.editor.selected.configurable" value="com.jetbrains.python.configuration.PyActiveSdkModuleConfigurable" />
   </component>
   <component name="RunDashboard">
     <option name="ruleStates">
@@ -260,34 +161,12 @@
     </layout>
   </component>
   <component name="editorHistoryManager">
-    <entry file="file://$PROJECT_DIR$/swm_output.py">
-      <provider selected="true" editor-type-id="text-editor" />
-    </entry>
-    <entry file="file://$PROJECT_DIR$/swm_rhs.py">
-      <provider selected="true" editor-type-id="text-editor" />
-    </entry>
-    <entry file="file://$PROJECT_DIR$/swm_run.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="180">
-          <caret line="15" column="23" lean-forward="true" selection-start-line="15" selection-start-column="23" selection-end-line="15" selection-end-column="23" />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/swm_integration.py">
-      <provider selected="true" editor-type-id="text-editor" />
-    </entry>
-    <entry file="file://$PROJECT_DIR$/swm_param.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="-315" />
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/swm_operators.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="525">
-          <caret line="167" column="20" lean-forward="true" selection-start-line="157" selection-start-column="4" selection-end-line="167" selection-end-column="20" />
-        </state>
-      </provider>
-    </entry>
+    <entry file="file://$PROJECT_DIR$/swm_output.py" />
+    <entry file="file://$PROJECT_DIR$/swm_rhs.py" />
+    <entry file="file://$PROJECT_DIR$/swm_run.py" />
+    <entry file="file://$PROJECT_DIR$/swm_integration.py" />
+    <entry file="file://$PROJECT_DIR$/swm_param.py" />
+    <entry file="file://$PROJECT_DIR$/swm_operators.py" />
     <entry file="file://$PROJECT_DIR$/.gitignore">
       <provider selected="true" editor-type-id="text-editor" />
     </entry>
@@ -301,17 +180,20 @@
         </state>
       </provider>
     </entry>
+    <entry file="file://$PROJECT_DIR$/requirements.txt">
+      <provider selected="true" editor-type-id="text-editor" />
+    </entry>
     <entry file="file://$PROJECT_DIR$/shallowwater.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="-600">
-          <caret line="204" column="32" lean-forward="true" selection-start-line="204" selection-start-column="32" selection-end-line="204" selection-end-column="32" />
+        <state relative-caret-position="315">
+          <caret line="47" column="38" selection-start-line="47" selection-start-column="38" selection-end-line="47" selection-end-column="38" />
           <folding>
-            <marker date="1543330898146" expanded="true" signature="655:657" ph="..." />
-            <marker date="1543330898146" expanded="true" signature="655:661" ph="..." />
-            <marker date="1543330898146" expanded="true" signature="3714:3723" ph="..." />
-            <marker date="1543330898146" expanded="true" signature="7248:7477" ph="..." />
-            <marker date="1543330898146" expanded="true" signature="8102:9706" ph="..." />
-            <marker date="1543330898146" expanded="true" signature="9731:9740" ph="..." />
+            <marker date="1543333272583" expanded="true" signature="655:657" ph="..." />
+            <marker date="1543333272583" expanded="true" signature="655:661" ph="..." />
+            <marker date="1543333272583" expanded="true" signature="3719:3728" ph="..." />
+            <marker date="1543333272583" expanded="true" signature="7253:7482" ph="..." />
+            <marker date="1543333272583" expanded="true" signature="8107:9711" ph="..." />
+            <marker date="1543333272583" expanded="true" signature="9736:9745" ph="..." />
           </folding>
         </state>
       </provider>

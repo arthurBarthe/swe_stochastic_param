@@ -45,7 +45,7 @@ class ShallowWaterModel :
     #
     ####################################################################################################################
 
-    def __init__(self, output_path, Nx=256, Ny=256, Lx=3840e3, Ly=3840e3, Nt=365*24*60*60, dump_freq=24*60*60, output=0,
+    def __init__(self, output_path='./', Nx=256, Ny=256, Lx=3840e3, Ly=3840e3, Nt=365*24*60*60, dump_freq=24*60*60, output=0,
                  tau0=0.1, init='rest' ) :
 
         """
