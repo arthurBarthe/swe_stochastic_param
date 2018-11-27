@@ -83,6 +83,10 @@ class ShallowWaterModel :
         self.set_timestep();           print("--> Time-step calculated.")
 
         # initialise all operators of the model
+        self.init_grad_matrices();     print("--> Gradient matrices initialised.")
+        self.set_lapl_matrices();      print("--> Laplacian matrices initialised.")
+        self.set_interp_matrices();    print("--> Interpolation matrices initialised.")
+        self.set_arakawa_matrices();   print("--> Arakawa matrices initialised.")
 
         # only configure output if needed
         if output : self.config_output();    print("--> Configured output settings.")
@@ -183,6 +187,8 @@ class ShallowWaterModel :
         self.c_phase = np.sqrt( self.g * self.H )                               # gravity wave speed
         self.dt = np.floor( ( 0.9 * min( self.dx, self.dy ) ) / self.c_phase )  # time-step (s)
         self.N_iter = np.ceil( ( self.Nt * 3600.0 * 24.0 ) / self.dt )          # number of iterations/time-steps
+        self.t = 0                                                              # current time (s)
+        self.iter = 0                                                           # current iteration
 
     def set_initial_cond(self, path_to_init_data=None, u_file=None, v_file=None, eta_file=None ) :
         """
@@ -201,7 +207,6 @@ class ShallowWaterModel :
             u_0 = np.zeros( self.Nu )
             v_0 = np.zeros( self.Nv )
             eta_0 = np.zeros( self.NT )
-            self.t0 = 0
 
         elif self.init == 'file' :
 
@@ -245,6 +250,18 @@ class ShallowWaterModel :
     #
     ####################################################################################################################
 
+    def h2mat(self,eta) :
+        return eta.reshape( ( self.Ny, self.Nx ) )
+
+    def u2mat(self,u) :
+        return u.reshape( ( self.Ny, self.Nx-1 ) )
+
+    def v2mat(self,v) :
+        return v.reshape( ( self.Ny-1, self.Nx ) )
+
+    def q2mat(self,q) :
+        return q.reshape( ( self.Ny+1, self.Nx+1 ) )
+
     def init_grad_matrices(self) :
         """
         The paradigm of this model is to reshape all prognostic
@@ -287,7 +304,7 @@ class ShallowWaterModel :
                    - sparse.eye( self.NT ) )[:-self.Nx,:] / self.dy    # d/dy from T to v grid
 
         self.Gux = - self.GTx.T.tocsr()      # d/dx from u to T grid
-        self.Guy = - self.GTy.T.tocsr()      # d/dy from v to T grid
+        self.Gvy = - self.GTy.T.tocsr()      # d/dy from v to T grid
 
         # d/dy from u to q grid
         d1 = np.ones( self.Nq )
@@ -377,7 +394,6 @@ class ShallowWaterModel :
                      sparse.dia_matrix( (d, self.Nx + 1), shape=( ( self.NT + self.Ny - 1, self.Nq ) ) ) +
                      sparse.dia_matrix( (d, self.Nx + 2), shape=( ( self.NT + self.Ny - 1, self.Nq ) ) ) )[indx2, :]
 
-
         self.IuT = abs( self.Gux * self.dx / 2.)   # interpolate u-points to T-points, 2-point average
         self.IvT = abs( self.Gvy * self.dy / 2.)   # interpolate v-points to T-points, 2-point average
         self.ITu = abs( self.GTx * self.dx / 2.)   # interpolate T-points to u-points, 2-point average
@@ -422,18 +438,6 @@ class ShallowWaterModel :
         self.ITq = sparse.csr_matrix( self.IqT.T )
         self.ITq.data = d
 
-    def h2mat(self,eta) :
-        return eta.reshape( ( self.Ny, self.Nx ) )
-
-    def u2mat(self,u) :
-        return u.reshape( ( self.Ny, self.Nx-1 ) )
-
-    def v2mat(self,v) :
-        return v.reshape( ( self.Ny-1, self.Nx ) )
-
-    def q2mat(self,q) :
-        return q.reshape( ( self.Ny+1, self.Nx+1 ) )
-
     def set_arakawa_matrices(self) :
         """
         Set up the linear combinations of potential vorticity as in
@@ -454,16 +458,15 @@ class ShallowWaterModel :
         self.indx_av = np.array( self.indx_av )  # convert to numpy array for speed up
         self.indx_dv = np.array( self.indx_dv )
 
-        AL2 = ( sparse.dia_matrix( (d, 0), shape=( self.Nq + self.Nx, self.Nq ) ) +
-                sparse.dia_matrix( (2 * d, 1), shape=( self.Nq + self.Nx, self.Nq ) ) +
-                sparse.dia_matrix( (2 * d, self.Nx + 1), shape=( self.Nq + self.Nx, self.Nq ) ) +
-                sparse.dia_matrix( (d, self.Nx + 2), shape=( self.Nq + self.Nx, self.Nq ) ) )[indx1, :]
+        self.AL2 = ( sparse.dia_matrix( (d, 0), shape=( self.Nq + self.Nx, self.Nq ) ) +
+                     sparse.dia_matrix( (2 * d, 1), shape=( self.Nq + self.Nx, self.Nq ) ) +
+                     sparse.dia_matrix( (2 * d, self.Nx + 1), shape=( self.Nq + self.Nx, self.Nq ) ) +
+                     sparse.dia_matrix( (d, self.Nx + 2), shape=( self.Nq + self.Nx, self.Nq ) ) )[indx1, :]
 
         self.indx_bu = self.indx_du
         self.indx_cu = self.indx_au
         self.indx_bv = self.indx_dv
         self.indx_cv = self.indx_av
-
 
         indx2 = list( range( self.NT + self.Ny - 1 ) );   del indx2[self.Nx::(self.Nx + 1)];   del indx2[self.Nx - 1::self.Nx]
         self.ALeur = ( sparse.dia_matrix( (d, 0), shape=( self.NT + self.Ny - 1, self.Nq ) ) +
@@ -520,9 +523,115 @@ class ShallowWaterModel :
         self.Sav = sparse.dia_matrix( ( ones, -self.Nx ), shape=( self.Nv + self.Nx, self.Nv ) ).tocsr()[indx7, :].T.tocsr()
         self.Sbv = sparse.dia_matrix( ( ones, -(self.Nx - 1) ), shape=( self.Nv + self.Nx, self.Nv ) ).tocsr()[indx7, :].T.tocsr()
         self.Scv = sparse.dia_matrix( (ones, 0), shape=( self.Nv + self.Nx, self.Nv ) ).tocsr()[indx7, :].T.tocsr()
-
         self.Sdv = sparse.dia_matrix( ( ones, 1 ), shape=( self.Nv + self.Nx, self.Nv) ).tocsr()[indx7, :].T.tocsr()
 
+    ####################################################################################################################
+    #
+    # INTEGRATION
+    #
+    ####################################################################################################################
+
+    def rhs(self,u,v,eta) :
+        """
+        Set of equations:
+
+        u_t = qhv - p_x + Fx + Mx(u,v) - bottom_friction
+        v_t = -qhu - p_y + My(u,v)  - bottom_friction
+        eta_t = -(uh)_x - (vh)_y
+
+        with p = .5*(u**2 + v**2) + gh, the bernoulli potential
+        and q = (v_x - u_y + f)/h the potential vorticity
+
+        using the enstrophy and energy conserving scheme (Arakawa and Lamb, 1981) and
+        a biharmonic lateral mixing term based on Shchepetkin and O'Brien (1996).
+
+        :return: du/dt, dv/dt, deta/dt
+        """
+        h = eta + self.H
+
+        h_u = self.ITu.dot(h)   # h on u grid
+        h_v = self.ITv.dot(h)   # h on v grid
+        h_q = self.ITq.dot(h)   # h on q grid
+
+        U, V = u*h_u, v*h_v  # volume fluxes
+
+        KE = self.IuT.dot( u**2 ) + self.IvT.dot( v**2 ) # kinetic energy without 1/2 factor
+
+        # bottom friction
+        bfric_u = self.c_D * self.ITu.dot( np.sqrt( KE ) ) * u / h_u
+        bfric_v = self.c_D * self.ITv.dot( np.sqrt( KE ) ) * v / h_v
+
+        # potential vorticity and bernoulli potential
+        q = ( self.f_q + self.Gvx.dot(v) - self.Guy.dot(u) ) / h_q
+        p = 0.5 * KE + self.g * h
+
+        # Arakawa and Lamb advection
+        AL1q = self.AL1.dot(q)
+        AL2q = self.AL2.dot(q)
+
+        adv_u = self.Seur.dot( self.ALeur.dot(q) * U ) + self.Seul.dot( self.ALeul.dot(q) * U ) + \
+                self.Sau.dot( AL1q[ self.indx_au ] * V ) + self.Sbu.dot( AL2q[ self.indx_bu ] * V ) + \
+                self.Scu.dot( AL2q[ self.indx_cu ] * V ) + self.Sdu.dot( AL1q[ self.indx_du ] * V )
+
+        adv_v = self.Spvu.dot( self.ALpvu.dot(q) * V ) + self.Spvd.dot( self.ALpvd.dot(q) * V ) - \
+                self.Sav.dot( AL1q[ self.indx_av ] * U ) - self.Sbv.dot( AL2q[ self.indx_bv ] * U ) - \
+                self.Scv.dot( AL2q[ self.indx_cv ] * U ) - self.Sdv.dot( AL1q[ self.indx_dv ] * U )
+
+        # symmetric stress tensor S = (S11, S12, S12, -S11), store only S11, S12
+        S = ( self.Gux.dot(u) - self.Gvy.dot(v), self.Gvx.dot(v) + self.Guy.dot(u))
+        hS = (h * S[0], h_q * S[1])
+
+        diff_u = ( self.GTx * hS[0] + self.Gqy * hS[1]) / h_u
+        diff_v = ( self.Gqx * hS[1] - self.GTy * hS[0]) / h_v
+
+        # biharmonic stress tensor R = (R11, R12, R12, -R11), store only R11, R12
+        R = ( self.Gux.dot( diff_u ) - self.Gvy.dot( diff_v ), self.Gvx.dot( diff_v ) + self.Guy.dot( diff_u ) )
+        nuhR = ( self.nu_bih * h * R[0], self.nu_bih * h_q * R[1] )
+
+        bidiff_u = ( self.GTx.dot( nuhR[0] ) + self.Gqy.dot( nuhR[1] ) ) / h_u
+        bidiff_v = ( self.Gqx.dot( nuhR[1] ) - self.GTy.dot( nuhR[0] ) ) / h_v
+
+        ## RIGHT-HAND SIDE: ADD TERMS
+        rhs_u = adv_u - self.GTx.dot(p) + self.tau_x / h_u - bidiff_u - bfric_u
+        rhs_v = adv_v - self.GTy.dot(p) - bidiff_v - bfric_v
+        rhs_eta = -( self.Gux.dot(U) + self.Gvy.dot(V) )
+
+        return rhs_u, rhs_v, rhs_eta
+
+
+    def integrate_forward(self,u,v,eta) :
+        """
+        Numerically integrate the model forward one time-step
+        using the Runga-Kutto 4th order method.
+        :return: u, v, eta
+        """
+        # can't trigger deep copy through [:] use .copy() instead
+        u_old, v_old, eta_old = u.copy(), v.copy(), eta.copy()
+        u_new, v_new, eta_new = u.copy(), v.copy(), eta.copy()
+
+        # RK4 coefficients
+        rk_a = np.array( [ 1/6.0, 1/3.0, 1/3.0, 1/6.0 ] )
+        rk_b = np.array( [ 0.5, 0.5, 1.0 ] )
+
+        for rki in range(4):
+
+            du, dv, deta = self.rhs( u_old, v_old, eta_old )
+
+            if rki < 3:  # RHS update for the next RK-step
+                u_old = u + rk_b[rki] * self.dt * du
+                v_old = v + rk_b[rki] * self.dt * dv
+                eta_old = eta + rk_b[rki] * self.dt * deta
+
+            # Summing all the RHS on the go
+            u_new += rk_a[rki] * self.dt * du
+            v_new += rk_a[rki] * self.dt * dv
+            eta_new += rk_a[rki] * self.dt * deta
+
+        # update time-step variables
+        self.t += self.dt
+        self.iter += 1
+
+        return u_new, v_new, eta_new
 
 
 
