@@ -245,12 +245,13 @@ class ShallowWaterModel :
         """
         Configure where to saved model output and initialise the nc-files.
         """
-        self.N_output = np.floor( self.dump_freq / self.dt )                    # number of times output is saved
-        self.true_dump_freq = np.ceil( self.dt * self.N_output )   # true dump frequency
+        self.N_dumps = np.floor( self.Nt / float( self.dump_freq ) )
+        self.output_iter_freq = np.floor( self.dump_freq / self.dt )          # iteration frequency of data dumping
+        self.true_dump_freq = np.ceil( self.dt * self.output_iter_freq )      # true dump frequency in seconds
 
         if self.dump_output :
 
-            self.output_index = 0   
+            self.dump_iter = 0   
 
             # store files, dimensions and variables in dictionnaries
             self.ncu = dict()
@@ -308,6 +309,34 @@ class ShallowWaterModel :
                 nc_dict = getattr( self, 'nc'+var1 )
                 nc_dict['x'][:] = getattr( self, 'x_'+var2 )
                 nc_dict['y'][:] = getattr( self, 'y_'+var2 )
+                
+    def update_nc_files(self) :
+        """
+        Dump data at current timestep into .nc files.
+        """
+        if ( self.iter + 1 ) % self.output_iter_freq == 0:
+            
+            I = self.dump_iter 
+            
+            for var in [ 'u', 'v', 'eta' ] :
+                    
+                nc_dict = getattr( self, 'nc'+var )
+                nc_dict['t'][I] = t
+
+                nc_dict['u'][I,:,:] = self.u2mat(u)
+                nc_dict['v'][I,:,:] = self.v2mat(v)
+                nc_dict['eta'][I,:,:] = self.h2mat(eta)
+                    
+            self.dump_iter += 1
+    
+            print( "\t ...integrate_forward:: dumped output for {}th time at iteration {}.".format( int( self.dump_iter ),  int( self.iter ) ) )
+                
+            # check if finished dumping output
+            if self.dump_iter == self.N_dumps :
+                self.ncu['file'].close()
+                self.ncv['file'].close()
+                self.nceta['file'].close()
+                print( "\t ...integrate_forward:: All output has been dumped into the .nc files.")
 
     ####################################################################################################################
     #
@@ -697,7 +726,10 @@ class ShallowWaterModel :
         self.u = u_new.copy()
         self.v = v_new.copy()
         self.eta = eta_new.copy()
-
+        
+        # if writing to .nc files
+        if self.dump_output : self.update_nc_files()
+             
         # update time-step variables
         self.t += self.dt
         self.iter += 1
