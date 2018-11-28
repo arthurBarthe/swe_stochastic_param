@@ -42,8 +42,8 @@ class ShallowWaterModel :
     #
     ####################################################################################################################
 
-    def __init__(self, output_path='./', Nx=256, Ny=256, Lx=3840e3, Ly=3840e3, Nt=365*24*60*60, 
-                 dump_freq=30*24*60*60, dump_output=False, tau0=0.1, nu_lap=300 ) :
+    def __init__(self, output_path='./', Nx=256, Ny=256, Lx=3840e3, Ly=3840e3, Nt=360*24*60*60, 
+                 dump_freq=30*24*60*60, dump_output=False, tau0=0.1, nu_lap=300, model_name='', run_name='0001' ) :
 
         """
         Initialise parameters for the model.
@@ -70,6 +70,8 @@ class ShallowWaterModel :
         self.bc = 0                     # boundary conditions (0 = free slip)
         self.c_D = 1e-5                 # bottom friction coefficient
         self.nu_lap = nu_lap            # laplacian viscosity coefficient
+        self.run_name = run_name        # name of this particular integration
+        self.model_name = model_name    # name of this model        
         self.dump_output = dump_output  # bool for whether to dump output
         self.output_path = output_path  # where to store model output
         self.tau0 = tau0                # wind stress forcing amplitude
@@ -89,6 +91,8 @@ class ShallowWaterModel :
 
         # only configure output if needed
         if dump_output : self.config_output();    print("--> Configured output settings.")
+        
+        print( "\nDone! Ready to set initial conditions.")
 
 
 
@@ -193,7 +197,7 @@ class ShallowWaterModel :
         """
         self.c_phase = np.sqrt( self.g * self.H )                               # gravity wave speed
         self.dt = np.floor( ( 0.9 * min( self.dx, self.dy ) ) / self.c_phase )  # time-step (s)
-        self.N_iter = np.ceil( ( self.Nt * 3600.0 * 24.0 ) / self.dt )          # number of iterations/time-steps
+        self.N_iter = np.ceil( self.Nt / self.dt )          # number of iterations/time-steps
         self.t = 0                                                              # current time (s)
         self.iter = 0                                                           # current iteration
         
@@ -242,25 +246,68 @@ class ShallowWaterModel :
         Configure where to saved model output and initialise the nc-files.
         """
         self.N_output = np.floor( self.dump_freq / self.dt )                    # number of times output is saved
-        self.true_dump_freq = np.ceil( self.N_iter / float( self.N_output ) )   # true dump frequency
+        self.true_dump_freq = np.ceil( self.dt * self.N_output )   # true dump frequency
 
         if self.dump_output :
 
-            # store files, dimensions and variables in dictionaries
-            self.ncu   = Dataset( self.output_path+'/u_data.nc', 'w', format='NETCDF4' )
-            self.ncv   = Dataset( self.output_path+'/v_data.nc', 'w', format='NETCDF4' )
-            self.nceta = Dataset( self.output_path+'/eta_data.nc', 'w', format='NETCDF4' )
+            self.output_index = 0   
 
-            # store a few key parameters
-            #
+            # store files, dimensions and variables in dictionnaries
+            self.ncu = dict()
+            self.ncv = dict()
+            self.nceta = dict()
+
+            # creating the netcdf files
+            ncformat = 'NETCDF4'
+            filename = self.model_name + self.run_name + '.nc'
+            self.ncu['file'] = Dataset( self.output_path + 'u_' + filename, 'w', format=ncformat )
+            self.ncv['file'] = Dataset( self.output_path + 'v_' + filename, 'w', format=ncformat )
+            self.nceta['file'] = Dataset( self.output_path + 'eta_' + filename, 'w', format=ncformat )
+            
+            print( "\t ...config_output:: files to be written to {}.".format( self.output_path ) )
+            print( "\t ...config_output:: model data be dumped every {} seconds.".format( int( self.true_dump_freq ) ) )
+
             params = [ 'rho', 'tau0', 'dt', 'nu_lap', 'nu_bih', 'lat0', 'f0', 'beta', 'H', 'c_D',
-                       'Nx', 'Ny', 'dx', 'dy' ]
+                      'Nx', 'Ny', 'dx', 'dy', 'N_output', 'dump_freq', 'true_dump_freq' ]
 
-            ############################################
-            # !                   !                    !
-            # ADD CODE HERE TO SAVE OUTPUT AS NC FILES !
-            # !                   !                    !
-            ############################################
+            for p in params:
+                self.ncu['file'].setncattr( p, getattr( self, p ) )
+                self.ncv['file'].setncattr( p, getattr( self, p ) )
+                self.nceta['file'].setncattr( p, getattr( self, p ) )
+
+            # create dimensions
+            self.ncu['xdim'] = self.ncu['file'].createDimension( 'x', self.Nx-1 )
+            self.ncu['ydim'] = self.ncu['file'].createDimension( 'y', self.Ny )
+            self.ncu['tdim'] = self.ncu['file'].createDimension( 't', None )
+
+            self.ncv['xdim'] = self.ncv['file'].createDimension( 'x', self.Nx )
+            self.ncv['ydim'] = self.ncv['file'].createDimension( 'y', self.Ny-1 )
+            self.ncv['tdim'] = self.ncv['file'].createDimension( 't', None )
+
+            self.nceta['xdim'] = self.nceta['file'].createDimension( 'x', self.Nx )
+            self.nceta['ydim'] = self.nceta['file'].createDimension( 'y', self.Ny )
+            self.nceta['tdim'] = self.nceta['file'].createDimension( 't', None )
+
+            # create variables
+            p = 'f8' # 32-bit precision storing, or f8 for 64bit
+            for var in ['u','v','eta'] :
+        
+                nc_dict = getattr( self, 'nc'+var )
+                
+                nc_dict['t'] = nc_dict['file'].createVariable( 't', p, ('t',), zlib=True, fletcher32=True )
+                nc_dict['x'] = nc_dict['file'].createVariable( 'x', p, ('x',), zlib=True, fletcher32=True )
+                nc_dict['y'] = nc_dict['file'].createVariable( 'y', p, ('y',), zlib=True, fletcher32=True )
+                nc_dict[var] = nc_dict['file'].createVariable( var, p, ('t','y','x'), zlib=True, fletcher32=True )
+
+            self.ncu['u'].units = 'm/s'
+            self.ncv['v'].units = 'm/s'
+            self.nceta['eta'].units = 'm'
+
+            # write dimensions
+            for var1, var2 in zip( ['u', 'v', 'eta' ], [ 'u', 'v', 'T' ] ) :
+                nc_dict = getattr( self, 'nc'+var1 )
+                nc_dict['x'][:] = getattr( self, 'x_'+var2 )
+                nc_dict['y'][:] = getattr( self, 'y_'+var2 )
 
     ####################################################################################################################
     #
