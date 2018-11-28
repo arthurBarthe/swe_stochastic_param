@@ -42,34 +42,37 @@ class ShallowWaterModel :
     #
     ####################################################################################################################
 
-    def __init__(self, output_path='./', Nx=256, Ny=256, Lx=3840e3, Ly=3840e3, Nt=365*24*60*60, dump_freq=24*60*60, output=0,
-                 tau0=0.1 ) :
+    def __init__(self, output_path='./', Nx=256, Ny=256, Lx=3840e3, Ly=3840e3, Nt=365*24*60*60, 
+                 dump_freq=30*24*60*60, dump_output=False, tau0=0.1, nu_lap=300 ) :
 
         """
         Initialise parameters for the model.
         """
-
-        print( "Initialising various components of the model.")
+        
+        print( "--------------------------------------------" )
+        print( "Initialising various components of the model" )
+        print( "--------------------------------------------" )
 
         # spatial grid parameters
-        self.Nx = Nx                   # number of grid points in x-direction
-        self.Ny = Ny                   # number of grid points in y-direction
-        self.Lx = Lx                   # x-length of domain (m)
-        self.Ly = Ly                   # y-length of domain (m)
-        self.dx = Lx/float(Nx)         # horizontal grid-spacing in x-direction (m)
-        self.dy = Ly/float(Ny)         # horizontal grid-spacing in y-direction (m)
+        self.Nx = Nx                    # number of grid points in x-direction
+        self.Ny = Ny                    # number of grid points in y-direction
+        self.Lx = Lx                    # x-length of domain (m)
+        self.Ly = Ly                    # y-length of domain (m)
+        self.dx = Lx/float(Nx)          # horizontal grid-spacing in x-direction (m)
+        self.dy = Ly/float(Ny)          # horizontal grid-spacing in y-direction (m)
 
         # temporal parameters
-        self.Nt = Nt                   # integration time (s)
-        self.time_scheme = 'RK4'       # numerical scheme for time-stepping
-        self.dump_freq = dump_freq     # frequency to dump model output (s)
+        self.Nt = Nt                    # integration time (s)
+        self.time_scheme = 'RK4'        # numerical scheme for time-stepping
+        self.dump_freq = dump_freq      # frequency to dump model output (s)
 
         # misc parameters
-        self.bc = 0                    # boundary conditions (0 = free slip)
-        self.c_D = 1e-5                # bottom friction coefficient
-        self.output = output           # 1 for data storage, 0 for no storage
-        self.output_path = output_path # where to store model output
-        self.tau0 = tau0               # wind stress forcing amplitude
+        self.bc = 0                     # boundary conditions (0 = free slip)
+        self.c_D = 1e-5                 # bottom friction coefficient
+        self.nu_lap = nu_lap            # laplacian viscosity coefficient
+        self.dump_output = dump_output  # bool for whether to dump output
+        self.output_path = output_path  # where to store model output
+        self.tau0 = tau0                # wind stress forcing amplitude
 
         # initialise various components of the model
         self.init_grid();              print("--> Grid initialised.")
@@ -85,7 +88,7 @@ class ShallowWaterModel :
         self.set_arakawa_matrices();   print("--> Arakawa matrices initialised.")
 
         # only configure output if needed
-        if output : self.config_output();    print("--> Configured output settings.")
+        if dump_output : self.config_output();    print("--> Configured output settings.")
 
 
 
@@ -126,6 +129,9 @@ class ShallowWaterModel :
 
         self.x_q = np.arange( 0, self.Lx+self.dx/2.0, self.dx )     # x-coords for q grid
         self.y_q = np.arange( 0, self.Ly+self.dy/2.0, self.dy)      # y-coords for q grid
+        
+        print("\t ...init_grid:: numerical discretisation of {}x{} grid points.".format( self.Nx, self.Ny ) )
+        
 
     def set_coriolis(self) :
         """
@@ -152,14 +158,17 @@ class ShallowWaterModel :
         self.f_v = ( self.f0 + self.beta * Y_v.flatten() )
         self.f_q = ( self.f0 + self.beta * Y_q.flatten() )
         self.f_T = ( self.f0 + self.beta * Y_T.flatten() )
+        
+        print("\t ...set_coriolis:: central latitude of beta-plane lat0 = {}N.".format( self.lat0 ) )
 
     def set_viscosity(self) :
         """
         Linear scaling of constant viscosity coefficients
         based on nu_lap = 540 (m^2s^-1) at 30km resolution.
         """
-        self.nu_lap = 300
         self.nu_bih = self.nu_lap * self.max_dxdy ** 2
+        
+        print("\t ...set_viscosity:: laplacian coefficient {}, biharmonic coefficient {:.1E}.".format( self.nu_lap, self.nu_bih) )
 
     def set_forcing(self) :
         """
@@ -174,6 +183,8 @@ class ShallowWaterModel :
                                    + 2 * np.sin( np.pi * ( yy_u-self.Ly/2.0 ) / self.Ly )
                                    ) / self.rho
                                    ).flatten()
+        
+        print("\t ...set_forcing:: wind forcing amplitude of {}.".format( self.tau0 ) )
 
     def set_timestep(self) :
         """
@@ -185,6 +196,9 @@ class ShallowWaterModel :
         self.N_iter = np.ceil( ( self.Nt * 3600.0 * 24.0 ) / self.dt )          # number of iterations/time-steps
         self.t = 0                                                              # current time (s)
         self.iter = 0                                                           # current iteration
+        
+        print("\t ...set_timestep:: calculated timestep is dt = {} seconds.".format( self.dt ) )
+        print("\t ...set_timestep:: total number of iterations to run for is N_iter = {}.".format( int( self.N_iter ) ) )
 
     def set_initial_cond(self, init='rest', u_init=None, v_init=None, eta_init=None ) :
         """
@@ -230,12 +244,12 @@ class ShallowWaterModel :
         self.N_output = np.floor( self.dump_freq / self.dt )                    # number of times output is saved
         self.true_dump_freq = np.ceil( self.N_iter / float( self.N_output ) )   # true dump frequency
 
-        if self.output :
+        if self.dump_output :
 
             # store files, dimensions and variables in dictionaries
-            self.ncu   = Dataset( self.output_path+'/u.nc', 'w', format='NETCDF4' )
-            self.ncv   = Dataset( self.output_path+'/v.nc', 'w', format='NETCDF4' )
-            self.nceta = Dataset( self.output_path+'/eta.nc', 'w', format='NETCDF4' )
+            self.ncu   = Dataset( self.output_path+'/u_data.nc', 'w', format='NETCDF4' )
+            self.ncv   = Dataset( self.output_path+'/v_data.nc', 'w', format='NETCDF4' )
+            self.nceta = Dataset( self.output_path+'/eta_data.nc', 'w', format='NETCDF4' )
 
             # store a few key parameters
             #
