@@ -17,13 +17,10 @@ Important departures from the original model:
 
 """
 
-import numpy as np                  # version 1.11.3-py36
-from scipy import sparse            # version 0.19-py36
-import time as tictoc
-from netCDF4 import Dataset         # version 1.2.4-py36, hdf5 version 1.8.17-py36, hdf4 version 4.2.12-py36
-import glob
-import zipfile
-
+import numpy as np
+import pickle
+from scipy import sparse
+from netCDF4 import Dataset
 
 
 class ShallowWaterModel :
@@ -46,7 +43,7 @@ class ShallowWaterModel :
     ####################################################################################################################
 
     def __init__(self, output_path='./', Nx=256, Ny=256, Lx=3840e3, Ly=3840e3, Nt=365*24*60*60, dump_freq=24*60*60, output=0,
-                 tau0=0.1, init='rest' ) :
+                 tau0=0.1 ) :
 
         """
         Initialise parameters for the model.
@@ -73,7 +70,6 @@ class ShallowWaterModel :
         self.output = output           # 1 for data storage, 0 for no storage
         self.output_path = output_path # where to store model output
         self.tau0 = tau0               # wind stress forcing amplitude
-        self.init = init               # 'rest' = run from scratch, 'file' start from .nc
 
         # initialise various components of the model
         self.init_grid();              print("--> Grid initialised.")
@@ -190,15 +186,17 @@ class ShallowWaterModel :
         self.t = 0                                                              # current time (s)
         self.iter = 0                                                           # current iteration
 
-    def set_initial_cond(self, path_to_init_data=None, u_file=None, v_file=None, eta_file=None ) :
+    def set_initial_cond(self, init='rest', u_init=None, v_init=None, eta_init=None ) :
         """
         Initialise the prognostic variables of the model either
-        from rest, or from existing nc files for u, v and eta
+        
+        :param init: 'rest' -> run model from scratch from rest
+                     'state' -> run model from given u, v, eta
 
-        :param path_to_init_data: path to directory containing init data
-        :param u_file: filename of .nc file with u data
-        :param v_file: filename of .nc file with v data
-        :param eta_file: filename of .nc file with eta data
+        :param u_init:     2D array of u field
+        :param v_init:     2D array of v field
+        :param eta_init:   2D array of eta field
+        
         :return: u_0, v_0, eta_0
         """
 
@@ -208,12 +206,18 @@ class ShallowWaterModel :
             v_0 = np.zeros( self.Nv )
             eta_0 = np.zeros( self.NT )
 
-        elif self.init == 'file' :
+        elif self.init == 'state' :
 
             # load from .nc file
-            u_0 = Dataset( path_to_init_data + u_file )
-            v_0 = Dataset( path_to_init_data + v_file )
-            eta_0 = Dataset( path_to_init_data + eta_file )
+            u_0 = u_init
+            v_0 = v_init
+            eta_0 = eta_init
+            
+        # keep a copy of the most recent values 
+        # of each field
+        self.u = u_0.copy()
+        self.v = v_0.copy()
+        self.eta = eta_0.copy()
 
         return u_0, v_0, eta_0
 
@@ -626,6 +630,12 @@ class ShallowWaterModel :
             u_new += rk_a[rki] * self.dt * du
             v_new += rk_a[rki] * self.dt * dv
             eta_new += rk_a[rki] * self.dt * deta
+            
+        # update most recent fields 
+        # of u, v, and eta
+        self.u = u_new.copy()
+        self.v = v_new.copy()
+        self.eta = eta_new.copy()
 
         # update time-step variables
         self.t += self.dt
@@ -633,8 +643,31 @@ class ShallowWaterModel :
 
         return u_new, v_new, eta_new
 
+####################################################################################################################
+#
+# MISC
+#
+####################################################################################################################
 
+def save_model( model, model_name="shallow_water_model.pkl", where="./" ) :
+        """
+        Serialise instance of shallow water model with pickle.
+        """
+        with open( where + model_name, "wb" ) as file :
+            pickle.dump( model, file )    
+            
+def load_model( model_name, where="./" ) :
+        """
+        Load serialised instance of shallow water model with pickle.
+        """
+        with open( where + model_name, "rb" ) as file :
+            return pickle.load( file ) 
+            
 
+            
+    
+        
+        
 
 
 
