@@ -135,6 +135,7 @@ class ShallowWaterModel :
         self.y_q = np.arange( 0, self.Ly+self.dy/2.0, self.dy)      # y-coords for q grid
         
         print("\t ...init_grid:: numerical discretisation of {}x{} grid points.".format( self.Nx, self.Ny ) )
+        print("\t ...init_grid:: horizontal resolution of dx = {} km, dy = {} km.".format( int( self.dx*0.001), int( self.dy*0.001 ) ) )
         
 
     def set_coriolis(self) :
@@ -197,7 +198,7 @@ class ShallowWaterModel :
         """
         self.c_phase = np.sqrt( self.g * self.H )                               # gravity wave speed
         self.dt = np.floor( ( 0.9 * min( self.dx, self.dy ) ) / self.c_phase )  # time-step (s)
-        self.N_iter = np.ceil( self.Nt / self.dt )          # number of iterations/time-steps
+        self.N_iter = int( np.ceil( self.Nt / self.dt ) )                       # number of iterations/time-steps
         self.t = 0                                                              # current time (s)
         self.iter = 0                                                           # current iteration
         
@@ -218,13 +219,13 @@ class ShallowWaterModel :
         :return: u_0, v_0, eta_0
         """
 
-        if self.init == 'rest' :
+        if init == 'rest' :
 
             u_0 = np.zeros( self.Nu )
             v_0 = np.zeros( self.Nv )
             eta_0 = np.zeros( self.NT )
 
-        elif self.init == 'state' :
+        elif init == 'state' :
 
             # load from .nc file
             u_0 = u_init
@@ -260,7 +261,7 @@ class ShallowWaterModel :
 
             # creating the netcdf files
             ncformat = 'NETCDF4'
-            filename = self.model_name + self.run_name + '.nc'
+            filename = self.model_name + '_' + self.run_name + '.nc'
             self.ncu['file'] = Dataset( self.output_path + 'u_' + filename, 'w', format=ncformat )
             self.ncv['file'] = Dataset( self.output_path + 'v_' + filename, 'w', format=ncformat )
             self.nceta['file'] = Dataset( self.output_path + 'eta_' + filename, 'w', format=ncformat )
@@ -269,7 +270,7 @@ class ShallowWaterModel :
             print( "\t ...config_output:: model data be dumped every {} seconds.".format( int( self.true_dump_freq ) ) )
 
             params = [ 'rho', 'tau0', 'dt', 'nu_lap', 'nu_bih', 'lat0', 'f0', 'beta', 'H', 'c_D',
-                      'Nx', 'Ny', 'dx', 'dy', 'N_output', 'dump_freq', 'true_dump_freq' ]
+                      'Nx', 'Ny', 'dx', 'dy', 'N_dumps', 'dump_freq', 'true_dump_freq' ]
 
             for p in params:
                 self.ncu['file'].setncattr( p, getattr( self, p ) )
