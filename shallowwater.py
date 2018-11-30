@@ -322,18 +322,18 @@ class ShallowWaterModel :
             for var in [ 'u', 'v', 'eta' ] :
                     
                 nc_dict = getattr( self, 'nc'+var )
-                nc_dict['t'][I] = t
+                nc_dict['t'][I] = self.t
 
-                nc_dict['u'][I,:,:] = self.u2mat(u)
-                nc_dict['v'][I,:,:] = self.v2mat(v)
-                nc_dict['eta'][I,:,:] = self.h2mat(eta)
+                nc_dict['u'][I,:,:] = self.u2mat( self.u )
+                nc_dict['v'][I,:,:] = self.v2mat( self.v )
+                nc_dict['eta'][I,:,:] = self.h2mat( self.eta )
                     
             self.dump_iter += 1
     
             print( "\t ...integrate_forward:: dumped output for {}th time at iteration {}.".format( int( self.dump_iter ),  int( self.iter ) ) )
                 
             # check if finished dumping output
-            if self.dump_iter == self.N_dumps :
+            if (self.dump_iter + 1 ) == self.N_dumps :
                 self.ncu['file'].close()
                 self.ncv['file'].close()
                 self.nceta['file'].close()
@@ -620,6 +620,7 @@ class ShallowWaterModel :
         self.Scv = sparse.dia_matrix( (ones, 0), shape=( self.Nv + self.Nx, self.Nv ) ).tocsr()[indx7, :].T.tocsr()
         self.Sdv = sparse.dia_matrix( ( ones, 1 ), shape=( self.Nv + self.Nx, self.Nv) ).tocsr()[indx7, :].T.tocsr()
 
+
     ####################################################################################################################
     #
     # INTEGRATION
@@ -727,6 +728,11 @@ class ShallowWaterModel :
         self.u = u_new.copy()
         self.v = v_new.copy()
         self.eta = eta_new.copy()
+
+        # check for NaNs
+        if ( np.sum( np.isnan( self.u ) ) ) != 0 : print( "integrate_forward:: NaNs present in u! :(" )
+        if ( np.sum( np.isnan( self.v ) ) ) != 0 : print( "integrate_forward:: NaNs present in v! :(" )
+        if ( np.sum( np.isnan( self.eta ) ) ) != 0 : print( "integrate_forward:: NaNs present in eta! :(" )
         
         # if writing to .nc files
         if self.dump_output : self.update_nc_files()
@@ -744,18 +750,81 @@ class ShallowWaterModel :
 ####################################################################################################################
 
 def save_model( model, model_name="shallow_water_model.pkl", where="./" ) :
-        """
-        Serialise instance of shallow water model with pickle.
-        """
-        with open( where + model_name, "wb" ) as file :
-            pickle.dump( model, file )    
+    """
+    Serialise instance of shallow water model with pickle.
+    """
+    with open( where + model_name, "wb" ) as file :
+        pickle.dump( model, file )
             
 def load_model( model_name, where="./" ) :
-        """
-        Load serialised instance of shallow water model with pickle.
-        """
-        with open( where + model_name, "rb" ) as file :
-            return pickle.load( file ) 
+    """
+    Load serialised instance of shallow water model with pickle.
+    """
+    with open( where + model_name, "rb" ) as file :
+       return pickle.load( file )
+
+def cg( model1, model2, u1, v1, eta1 ) :
+    """
+    Coarse-grain the feilds u1, v1 and eta1 from
+    the higher-resolution grid of model1, to the
+    lower resolution grid of model2.
+
+    NOTE: Performs square coarse-graining, so assumes Nx = Ny
+          and that dx2 is some multiple of dx1.
+
+    :param model1:          High-res model
+    :param model2:          Low-res model
+    :param u1:              High-res u
+    :param v1:              High-res v
+    :param eta1:            High-res eta
+    :return: u2, v2, eta2   Coarse-grained high-res fields to low-res grid
+    """
+
+    # interpolate u and v fields to T grid
+    u1 = model1.IuT.dot( u1 )
+    v1 = model1.IuT.dot( v1 )
+
+    # convert to 2D numpy arrays
+    u1 = model1.u2mat( u1 )
+    v1 = model1.v2mat( v1 )
+    eta1 = model1.h2mat( eta1 )
+
+    # size of coarse-graining box
+    Ncg = model2.dx / model1.dx
+
+    if ( Ncg - int(Ncg) ) != 0 :
+        print( "WARNING: dx2 not integer multiple of dx1. Aborting coarse-graining.")
+        return None
+
+    # initialise arrays for coarse-grained fields
+    N1 = model1.Nx
+    N2 = model2.Nx
+
+    u2 = np.zeros( (N2,N2) )
+    v2 = np.zeros( (N2,N2) )
+    eta2 = np.zeros( (N2,N2) )
+
+    for i in range(N2) :
+        for j in  range(N2) :
+
+            I, J = 4*i, 4*j
+
+            u2[j,i] = np.mean( u1[J:J+4,I:I+4], axis=(0,1) )
+            v2[j,i] = np.mean( v1[J:J+4,I:I+4], axis=(0,1) )
+            eta2[j,i] = np.mean( eta1[J:J+4,I:I+4],axis=(0,1) )
+
+    # reshape back to 1D arrays (on T-grid)
+    u2 = np.reshape( u2, (N2,N2) )
+    v2 = np.reshape( v2, (N2,N2) )
+    eta2 = np.reshape( eta2, (N2,N2) )
+
+    # interpolate u and v back to u and v grids (from T-grid)
+    u2 = model2.ITu.dot( u2 )
+    v2 = model2.ITv.dot( v2 )
+
+    return u2, v2, eta2
+
+
             
 
             
