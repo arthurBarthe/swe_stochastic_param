@@ -695,7 +695,7 @@ class ShallowWaterModel :
         return rhs_u, rhs_v, rhs_eta
 
 
-    def integrate_forward(self,u,v,eta) :
+    def integrate_forward(self,u,v,eta, with_closure=False, closure=None ) :
         """
         Numerically integrate the model forward one time-step
         using the Runga-Kutto 4th order method.
@@ -712,6 +712,9 @@ class ShallowWaterModel :
         for rki in range(4):
 
             du, dv, deta = self.rhs( u_old, v_old, eta_old )
+
+            if with_closure :
+                du, dv = closure( du, dv )
 
             if rki < 3:  # RHS update for the next RK-step
                 u_old = u + rk_b[rki] * self.dt * du
@@ -760,6 +763,9 @@ def load_model( model_name, where="./" ) :
     """
     Load serialised instance of shallow water model with pickle.
     """
+    if where[-1] != '/' :
+        where = where + '/'
+
     with open( where + model_name, "rb" ) as file :
        return pickle.load( file )
 
