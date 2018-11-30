@@ -714,7 +714,7 @@ class ShallowWaterModel :
             du, dv, deta = self.rhs( u_old, v_old, eta_old )
 
             if with_closure :
-                du, dv = closure( du, dv )
+                du, dv = closure.predict( du, dv )
 
             if rki < 3:  # RHS update for the next RK-step
                 u_old = u + rk_b[rki] * self.dt * du
