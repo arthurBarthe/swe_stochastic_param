@@ -318,16 +318,16 @@ class ShallowWaterModel :
         if ( self.iter + 1 ) % self.output_iter_freq == 0:
             
             I = self.dump_iter 
-            
-            for var in [ 'u', 'v', 'eta' ] :
-                    
-                nc_dict = getattr( self, 'nc'+var )
-                nc_dict['t'][I] = self.t
 
-                nc_dict['u'][I,:,:] = self.u2mat( self.u )
-                nc_dict['v'][I,:,:] = self.v2mat( self.v )
-                nc_dict['eta'][I,:,:] = self.h2mat( self.eta )
-                    
+            self.ncu['t'][I] = self.t
+            self.ncu['u'][I,:,:] = self.u2mat( self.u )
+
+            self.ncv['t'][I] = self.t
+            self.ncv['v'][I,:,:] = self.v2mat( self.v )
+
+            self.nceta['t'][I] = self.t
+            self.nceta['eta'][I,:,:] = self.h2mat( self.eta )
+                
             self.dump_iter += 1
     
             print( "\t ...integrate_forward:: dumped output for {}th time at iteration {}.".format( int( self.dump_iter ),  int( self.iter ) ) )
