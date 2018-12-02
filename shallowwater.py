@@ -327,7 +327,7 @@ class ShallowWaterModel :
 
             self.nceta['t'][I] = self.t
             self.nceta['eta'][I,:,:] = self.h2mat( self.eta )
-                
+
             self.dump_iter += 1
     
             print( "\t ...integrate_forward:: dumped output for {}th time at iteration {}.".format( int( self.dump_iter ),  int( self.iter ) ) )
