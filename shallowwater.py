@@ -184,10 +184,8 @@ class ShallowWaterModel :
         self.rho = 1e3      # density of water (kgm^-3)
         xx_u, yy_u = np.meshgrid( self.x_u, self.y_u )
 
-        self.tau_x = ( self.tau0 * ( np.cos( 2 * np.pi * ( yy_u-self.Ly/2.0 ) / self.Ly )
-                                   + 2 * np.sin( np.pi * ( yy_u-self.Ly/2.0 ) / self.Ly )
-                                   ) / self.rho
-                                   ).flatten()
+        self.tau_x = ( self.tau0 * np.square( np.sin( np.pi * ( yy_u-self.Ly ) / self.Ly ) ) / self.rho
+                      ).flatten()
         
         print("\t ...set_forcing:: wind forcing amplitude of {}.".format( self.tau0 ) )
 
