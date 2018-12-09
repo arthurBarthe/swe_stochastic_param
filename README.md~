@@ -4,7 +4,7 @@ An adaption of the shallow water model found [in this repo](http://www.github.co
 
 As in the original model, the shallow water equations are solved numerically using the Runge-Kutta 4th order method. However, there are some important differences:
 
-* Only no-slip boundary conditions are implemented here.
+* Only free-slip boundary conditions are implemented here.
 * All numerical values are represented as float64.
 * The model is written as a single class in `shallowwater.py`.
 

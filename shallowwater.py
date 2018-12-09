@@ -43,7 +43,7 @@ class ShallowWaterModel :
     ####################################################################################################################
 
     def __init__(self, output_path='./', Nx=256, Ny=256, Lx=3840e3, Ly=3840e3, Nt=360*24*60*60, 
-                 dump_freq=30*24*60*60, dump_output=False, tau0=0.1, nu_lap=300, model_name='', run_name='0001' ) :
+                 dump_freq=30*24*60*60, dump_output=False, tau0=0.1, nu_lap=540, model_name='', run_name='0001' ) :
 
         """
         Initialise parameters for the model.
@@ -67,7 +67,7 @@ class ShallowWaterModel :
         self.dump_freq = dump_freq      # frequency to dump model output (s)
 
         # misc parameters
-        self.bc = 0                     # boundary conditions (0 = free slip)
+        self.bc = 2                     # boundary conditions (0 = no slip)
         self.c_D = 1e-5                 # bottom friction coefficient
         self.nu_lap = nu_lap            # laplacian viscosity coefficient
         self.run_name = run_name        # name of this particular integration
@@ -184,8 +184,12 @@ class ShallowWaterModel :
         self.rho = 1e3      # density of water (kgm^-3)
         xx_u, yy_u = np.meshgrid( self.x_u, self.y_u )
 
-        self.tau_x = ( self.tau0 * np.square( np.sin( np.pi * ( yy_u-self.Ly ) / self.Ly ) ) / self.rho
+        self.tau_x = ( self.tau0 * np.square( np.sin( np.pi * ( yy_u ) / self.Ly ) ) / self.rho
                       ).flatten()
+
+        #self.tau_x = 0.12 * (np.cos(2 * np.pi * ( yy_u - self.Ly / 2) / self.Ly) + 2 * np.sin(np.pi * ( yy_u - self.Ly / 2) / self.Ly)) / self.rho
+
+        self.tau_x = self.tau_x.flatten()
         
         print("\t ...set_forcing:: wind forcing amplitude of {}.".format( self.tau0 ) )
 
@@ -707,7 +711,7 @@ class ShallowWaterModel :
         rk_a = np.array( [ 1/6.0, 1/3.0, 1/3.0, 1/6.0 ] )
         rk_b = np.array( [ 0.5, 0.5, 1.0 ] )
 
-        for rki in range(4):
+        for rki in range(4) :
 
             du, dv, deta = self.rhs( u_old, v_old, eta_old )
 
