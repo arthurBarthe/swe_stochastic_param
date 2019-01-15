@@ -184,14 +184,14 @@ class ShallowWaterModel :
         self.rho = 1e3      # density of water (kgm^-3)
         xx_u, yy_u = np.meshgrid( self.x_u, self.y_u )
 
-        self.tau_x = ( self.tau0 * np.square( np.sin( np.pi * ( yy_u ) / self.Ly ) ) / self.rho
-                      ).flatten()
+        # meridional width of forcing pattern
+        sigma = 100e3
 
-        #self.tau_x = 0.12 * (np.cos(2 * np.pi * ( yy_u - self.Ly / 2) / self.Ly) + 2 * np.sin(np.pi * ( yy_u - self.Ly / 2) / self.Ly)) / self.rho
+        self.tau_x = self.tau0 * np.exp( - 0.5 * np.square( ( yy_u - self.Ly * 0.5 ) / sigma ) ) / self.rho
 
         self.tau_x = self.tau_x.flatten()
         
-        print("\t ...set_forcing:: wind forcing amplitude of {}.".format( self.tau0 ) )
+        print("\t ...set_forcing:: wind forcing amplitude of {} Nm-2.".format( self.tau0 ) )
 
     def set_timestep(self) :
         """
