@@ -3,18 +3,14 @@ A script to spinup a high-resolution instance of the
 shallow water model as a test.
 """
 
-from shallowwater import ShallowWaterModel, save_model
-import matplotlib.pyplot as plt
+from shallowwater import ShallowWaterModel
 
-model = ShallowWaterModel( Nx=128, Ny=128, Lx=3840e3, Ly=3840e3, Nt=10*300*24*60*60,
-                 dump_freq=24*60*60, dump_output=True, tau0=0.2,
-                 model_name='med_res', run_name='1yr_spinup' )
+model = ShallowWaterModel( Nx=128, Ny=128, Lx=3840e3, Ly=3840e3, Nt=10*360*24*60*60,
+                 dump_freq=30*24*60*60, dump_output=True, tau0=0.2,
+                 model_name='eddy_permitting', run_name='_10yr_spinup' )
 
 u, v, eta = model.set_initial_cond( init='rest' )
 
-#plt.imshow( model.tau_x.reshape( (127,128) ) )
-#plt.colorbar()
-#plt.show()
 
 for i in range( model.N_iter ) :
 
@@ -25,10 +21,13 @@ for i in range( model.N_iter ) :
 
     u_new, v_new, eta_new = model.integrate_forward( u, v, eta )
     
+    if u_new is None :
+		print( "Integration finished!" )
+		break
+    
     u = u_new
     v = v_new
     eta = eta_new
     
     
-save_model( model, model_name='med_res_10yr_spin.pkl', where='./ocean_models/' )
 

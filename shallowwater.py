@@ -741,6 +741,10 @@ class ShallowWaterModel :
         
         # if writing to .nc files
         if self.dump_output : self.update_nc_files()
+        
+        # check if at the end of the integration
+        if (self.dump_iter + 1 ) == self.N_dumps :
+			return None, None, None
              
         # update time-step variables
         self.t += self.dt
@@ -754,22 +758,6 @@ class ShallowWaterModel :
 #
 ####################################################################################################################
 
-def save_model( model, model_name="shallow_water_model.pkl", where="./" ) :
-    """
-    Serialise instance of shallow water model with pickle.
-    """
-    with open( where + model_name, "wb" ) as file :
-        pickle.dump( model, file )
-            
-def load_model( model_name, where="./" ) :
-    """
-    Load serialised instance of shallow water model with pickle.
-    """
-    if where[-1] != '/' :
-        where = where + '/'
-
-    with open( where + model_name, "rb" ) as file :
-       return pickle.load( file )
 
 def cg( model1, model2, u1, v1, eta1 ) :
     """
