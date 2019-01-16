@@ -233,20 +233,20 @@ class ShallowWaterModel :
             # load from .nc file
             u_data = Dataset( u_file )
             v_data = Dataset( v_file ) 
-            eta_deta = Dataset( eta_file )
+            eta_data = Dataset( eta_file )
             
             u = np.array( u_data.variables['u'] )
             v = np.array( v_data.variables['v'] )
             eta = np.array( eta_data.variables['eta'] )
             
             if len( u.shape ) == 3 :
-				u_0 = np.squeeze( u[-1,:,:].reshape( (-1,1) )
-				v_0 = np.squeeze( v[-1,:,:].reshape( (-1,1) )
-				eta_0 = np.squeeze( eta[-1,:,:].reshape( (-1,1) )
-		    else : 
-				u_0 = np.squeeze( u.reshape( (-1,1) ) )
-				v_0 = np.squeeze( v.reshape( (-1,1) ) )
-				eta_0 = np.squeeze( eta.reshape( (-1,1) ) )
+		        u_0 = np.squeeze( u[-1,:,:].reshape( (-1,1) ) )
+		        v_0 = np.squeeze( v[-1,:,:].reshape( (-1,1) ) )
+		        eta_0 = np.squeeze( eta[-1,:,:].reshape( (-1,1) ) )
+            else : 
+                u_0 = np.squeeze( u.reshape( (-1,1) ) )
+                v_0 = np.squeeze( v.reshape( (-1,1) ) )
+                eta_0 = np.squeeze( eta.reshape( (-1,1) ) )
             
         # keep a copy of the most recent values 
         # of each field
