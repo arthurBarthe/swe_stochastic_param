@@ -42,14 +42,13 @@ class ShallowWaterModel :
     #
     ####################################################################################################################
 
-    def __init__(self, output_path='./', Nx=256, Ny=256, Lx=3840e3, Ly=3840e3, Nt=360*24*60*60, 
-                 dump_freq=30*24*60*60, dump_output=False, tau0=0.1, nu_lap=540, model_name='', 
-                 run_name='0001' ) :
+    def __init__(self, output_path='', Nx=256, Ny=256, Lx=3840e3, Ly=3840e3, Nt=360*24*60*60, 
+                 dump_freq=30*24*60*60, dump_output=False, tau0=0.12, nu_lap=540, model_name='', 
+                 run_name='0001', bc=2) :
 
         """
         Initialise parameters for the model.
         """
-        
         print( "--------------------------------------------" )
         print( "Initialising various components of the model" )
         print( "--------------------------------------------" )
@@ -66,10 +65,11 @@ class ShallowWaterModel :
         self.Nt = Nt                    # integration time (s)
         self.time_scheme = 'RK4'        # numerical scheme for time-stepping
         self.dump_freq = dump_freq      # frequency to dump model output (s)
+        self.dump_iter = 0
 
         # misc parameters
-        self.bc = 2                     # boundary conditions (0 = no slip)
-        self.c_D = 1e-5                 # bottom friction coefficient
+        self.bc = bc                     # boundary conditions (2 = no slip)
+        self.c_D = 1e-5                    # bottom friction coefficient -- was 1e-5
         self.nu_lap = nu_lap            # laplacian viscosity coefficient
         self.run_name = run_name        # name of this particular integration
         self.model_name = model_name    # name of this model        
@@ -172,8 +172,8 @@ class ShallowWaterModel :
         Linear scaling of constant viscosity coefficients
         based on nu_lap = 540 (m^2s^-1) at 30km resolution.
         """
+        # self.nu_bih = self.nu_lap * 128 / self.min_NxNy * self.max_dxdy ** 2
         self.nu_bih = self.nu_lap * self.max_dxdy ** 2
-        
         print("\t ...set_viscosity:: laplacian coefficient {}, biharmonic coefficient {:.1E}.".format( self.nu_lap, self.nu_bih) )
 
     def set_forcing(self) :
@@ -186,9 +186,12 @@ class ShallowWaterModel :
         xx_u, yy_u = np.meshgrid( self.x_u, self.y_u )
 
         # meridional width of forcing pattern
-        sigma = 100e3
+        sigma = 100e3     # was 100
 
-        self.tau_x = self.tau0 * np.exp( - 0.5 * np.square( ( yy_u - self.Ly * 0.5 ) / sigma ) ) / self.rho
+        # self.tau_x = self.tau0 * np.exp( - 0.5 * np.square( ( yy_u - self.Ly * 0.5 ) / sigma ) ) / self.rho
+        self.tau_x = self.tau0*(np.cos(2*np.pi*(yy_u-self.Ly/2)/self.Ly) \
+                                + 2*np.sin(np.pi*(yy_u - self.Ly/2)/self.Ly)) \
+            / self.rho
 
         self.tau_x = self.tau_x.flatten()
         
@@ -240,9 +243,9 @@ class ShallowWaterModel :
             eta = np.array( eta_data.variables['eta'] )
             
             if len( u.shape ) == 3 :
-		        u_0 = np.squeeze( u[-1,:,:].reshape( (-1,1) ) )
-		        v_0 = np.squeeze( v[-1,:,:].reshape( (-1,1) ) )
-		        eta_0 = np.squeeze( eta[-1,:,:].reshape( (-1,1) ) )
+                np.squeeze( u[-1,:,:].reshape( (-1,1) ) )
+                np.squeeze( v[-1,:,:].reshape( (-1,1) ) )
+                eta_0 = np.squeeze( eta[-1,:,:].reshape( (-1,1) ) )
             else : 
                 u_0 = np.squeeze( u.reshape( (-1,1) ) )
                 v_0 = np.squeeze( v.reshape( (-1,1) ) )
@@ -273,7 +276,12 @@ class ShallowWaterModel :
             # store files, dimensions and variables in dictionnaries
             self.ncu = dict()
             self.ncv = dict()
+            self.ncdu = dict()
+            self.ncdv = dict()
             self.nceta = dict()
+            if hasattr(self, 's_x'):
+                self.ncdu = dict()
+                self.ncdv = dict()
 
             # creating the netcdf files
             ncformat = 'NETCDF4'
@@ -281,17 +289,23 @@ class ShallowWaterModel :
             self.ncu['file'] = Dataset( self.output_path + 'u_' + filename, 'w', format=ncformat )
             self.ncv['file'] = Dataset( self.output_path + 'v_' + filename, 'w', format=ncformat )
             self.nceta['file'] = Dataset( self.output_path + 'eta_' + filename, 'w', format=ncformat )
+
+            self.ncdu['file'] = Dataset( self.output_path + 'du_' + filename, 'w', format=ncformat )
+            self.ncdv['file'] = Dataset( self.output_path + 'dv_' + filename, 'w', format=ncformat )
+
             
             print( "\t ...config_output:: files to be written to {}.".format( self.output_path ) )
             print( "\t ...config_output:: model data be dumped every {} seconds.".format( int( self.true_dump_freq ) ) )
 
             params = [ 'rho', 'tau0', 'dt', 'nu_lap', 'nu_bih', 'lat0', 'f0', 'beta', 'H', 'c_D',
-                      'Nx', 'Ny', 'dx', 'dy', 'N_dumps', 'dump_freq', 'true_dump_freq' ]
+                      'Nx', 'Ny', 'dx', 'dy', 'N_dumps', 'dump_freq', 'true_dump_freq', 'bc']
 
             for p in params:
                 self.ncu['file'].setncattr( p, getattr( self, p ) )
                 self.ncv['file'].setncattr( p, getattr( self, p ) )
                 self.nceta['file'].setncattr( p, getattr( self, p ) )
+                self.ncdu['file'].setncattr( p, getattr( self, p ) )
+                self.ncdv['file'].setncattr( p, getattr( self, p ) )
 
             # create dimensions
             self.ncu['xdim'] = self.ncu['file'].createDimension( 'x', self.Nx-1 )
@@ -305,6 +319,14 @@ class ShallowWaterModel :
             self.nceta['xdim'] = self.nceta['file'].createDimension( 'x', self.Nx )
             self.nceta['ydim'] = self.nceta['file'].createDimension( 'y', self.Ny )
             self.nceta['tdim'] = self.nceta['file'].createDimension( 't', None )
+            
+            self.ncdu['xdim'] = self.ncdu['file'].createDimension( 'x', self.Nx-1 )
+            self.ncdu['ydim'] = self.ncdu['file'].createDimension( 'y', self.Ny )
+            self.ncdu['tdim'] = self.ncdu['file'].createDimension( 't', None )
+            
+            self.ncdv['xdim'] = self.ncdv['file'].createDimension( 'x', self.Nx )
+            self.ncdv['ydim'] = self.ncdv['file'].createDimension( 'y', self.Ny-1 )
+            self.ncdv['tdim'] = self.ncdv['file'].createDimension( 't', None )
 
             # create variables
             p = 'f8' # 32-bit precision storing, or f8 for 64bit
@@ -316,17 +338,36 @@ class ShallowWaterModel :
                 nc_dict['x'] = nc_dict['file'].createVariable( 'x', p, ('x',), zlib=True, fletcher32=True )
                 nc_dict['y'] = nc_dict['file'].createVariable( 'y', p, ('y',), zlib=True, fletcher32=True )
                 nc_dict[var] = nc_dict['file'].createVariable( var, p, ('t','y','x'), zlib=True, fletcher32=True )
+            
+            for var in ['du','dv'] :
+                nc_dict = getattr( self, 'nc'+var )
+                
+                nc_dict['t'] = nc_dict['file'].createVariable( 't', p, ('t',), zlib=True, fletcher32=True )
+                nc_dict['x'] = nc_dict['file'].createVariable( 'x', p, ('x',), zlib=True, fletcher32=True )
+                nc_dict['y'] = nc_dict['file'].createVariable( 'y', p, ('y',), zlib=True, fletcher32=True )
+                nc_dict[var] = nc_dict['file'].createVariable( var, p, ('t','y','x'), zlib=True, fletcher32=True )
+                if var == 'du':
+                    nc_dict['s_x'] = nc_dict['file'].createVariable('s_x', p, ('t','y','x'), zlib=True, fletcher32=True )
+                elif var == 'dv':
+                    nc_dict['s_y'] = nc_dict['file'].createVariable('s_y', p, ('t','y','x'), zlib=True, fletcher32=True )
 
             self.ncu['u'].units = 'm/s'
             self.ncv['v'].units = 'm/s'
             self.nceta['eta'].units = 'm'
+            self.ncdu['du'].units = 'm/s^2'
+            self.ncdv['dv'].units = 'm/s^2'
 
             # write dimensions
             for var1, var2 in zip( ['u', 'v', 'eta' ], [ 'u', 'v', 'T' ] ) :
                 nc_dict = getattr( self, 'nc'+var1 )
                 nc_dict['x'][:] = getattr( self, 'x_'+var2 )
                 nc_dict['y'][:] = getattr( self, 'y_'+var2 )
-                
+
+            for var1, var2 in zip( ['du', 'dv'], [ 'u', 'v'] ) :
+                nc_dict = getattr( self, 'nc'+var1 )
+                nc_dict['x'][:] = getattr( self, 'x_'+var2 )
+                nc_dict['y'][:] = getattr( self, 'y_'+var2 )
+
     def update_nc_files(self) :
         """
         Dump data at current timestep into .nc files.
@@ -344,6 +385,14 @@ class ShallowWaterModel :
             self.nceta['t'][I] = self.t
             self.nceta['eta'][I,:,:] = self.h2mat( self.eta )
 
+            if hasattr(self, 's_x'):
+                self.ncdu['t'][I] = self.t
+                self.ncdu['s_x'][I, :, :] = self.u2mat(self.s_x)
+                self.ncdu['du'][I, :, :] = self.u2mat(self.du)
+                self.ncdv['t'][I] = self.t
+                self.ncdv['s_y'][I, :, :] = self.v2mat(self.s_y)
+                self.ncdv['dv'][I, :, :] = self.v2mat(self.dv)
+
             self.dump_iter += 1
     
             print( "\t ...integrate_forward:: dumped output for {}th time at iteration {}.".format( int( self.dump_iter ),  int( self.iter ) ) )
@@ -353,7 +402,11 @@ class ShallowWaterModel :
                 self.ncu['file'].close()
                 self.ncv['file'].close()
                 self.nceta['file'].close()
+                self.ncdu['file'].close()
+                self.ncdv['file'].close()
                 print( "\t ...integrate_forward:: All output has been dumped into the .nc files.")
+                if hasattr(self, 's_x'):
+                    print('\t... also saving the forcing')
 
     ####################################################################################################################
     #
@@ -758,7 +811,7 @@ class ShallowWaterModel :
         
         # check if at the end of the integration
         if (self.dump_iter + 1 ) == self.N_dumps :
-			return None, None, None
+            return None, None, None
              
         # update time-step variables
         self.t += self.dt
