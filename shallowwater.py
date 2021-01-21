@@ -172,7 +172,6 @@ class ShallowWaterModel :
         Linear scaling of constant viscosity coefficients
         based on nu_lap = 540 (m^2s^-1) at 30km resolution.
         """
-        # self.nu_bih = self.nu_lap * 128 / self.min_NxNy * self.max_dxdy ** 2
         self.nu_bih = self.nu_lap * self.max_dxdy ** 2
         print("\t ...set_viscosity:: laplacian coefficient {}, biharmonic coefficient {:.1E}.".format( self.nu_lap, self.nu_bih) )
 
@@ -186,7 +185,7 @@ class ShallowWaterModel :
         xx_u, yy_u = np.meshgrid( self.x_u, self.y_u )
 
         # meridional width of forcing pattern
-        sigma = 100e3     # was 100
+        sigma = 100e3    
 
         # self.tau_x = self.tau0 * np.exp( - 0.5 * np.square( ( yy_u - self.Ly * 0.5 ) / sigma ) ) / self.rho
         self.tau_x = self.tau0*(np.cos(2*np.pi*(yy_u-self.Ly/2)/self.Ly) \
