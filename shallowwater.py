@@ -43,7 +43,8 @@ class ShallowWaterModel :
     ####################################################################################################################
 
     def __init__(self, output_path='', Nx=256, Ny=256, Lx=3840e3, Ly=3840e3, Nt=360*24*60*60, 
-                 dump_freq=30*24*60*60, dump_output=False, tau0=0.12, nu_lap=540, model_name='', 
+                 dump_freq=1*24*60*60, dump_output=False, tau0=0.12,
+                 nu_lap=540, model_name='',
                  run_name='0001', bc=2) :
 
         """
@@ -185,7 +186,7 @@ class ShallowWaterModel :
         xx_u, yy_u = np.meshgrid( self.x_u, self.y_u )
 
         # meridional width of forcing pattern
-        sigma = 100e3    
+        sigma = 100e3
 
         # self.tau_x = self.tau0 * np.exp( - 0.5 * np.square( ( yy_u - self.Ly * 0.5 ) / sigma ) ) / self.rho
         self.tau_x = self.tau0*(np.cos(2*np.pi*(yy_u-self.Ly/2)/self.Ly) \
