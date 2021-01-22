@@ -13,80 +13,103 @@ import sys
 sys.path.append('/home/ag7531/code')
 sys.path.append('/home/ag7531/code/subgrid')
 import torch
-import mlflow
 import logging
+
+import numpy as np
+import matplotlib.pyplot as plt
+import matplotlib
+import mlflow
+import argparse
+
 from shallowwater import ShallowWaterModel
-from shallowwaterParameterized import WaterModelWithDLParameterization, Parameterization
+from shallowwaterParameterized import (WaterModelWithDLParameterization,
+                                       Parameterization)
 from subgrid.models.utils import load_model_cls
 from subgrid.analysis.utils import select_run, select_experiment
 from subgrid.testing.utils import pickle_artifact
 from netCDF4 import Dataset
 from os.path import join
 from utils import coarsen
-import numpy as np
-import matplotlib.pyplot as plt
-import matplotlib
+import tempfile
 
-
-output_path='/scratch/ag7531/shallowWaterModel/'
+# Make temporary dir to save outputs
+temp_dir = tempfile.mkdtemp(dir='/scratch/ag7531/temp/')
 
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-every = 1
 
+parser = argparse.ArgumentParser()
+parser.add_argument('nyears', type=int,
+                    help='Number of years the model is spun up for')
+parser.add_argument('factor', type=int,
+                    help='Coarse-graining factor')
+parser.add_argument('--every', type=int, default=1,
+                    help='Parameter passed to the stochastic parameterization')
+parser.add_argument('--param_amp', type=int, default=1.,
+                    help='Multiplication factor applied to parameterization')
+script_args = parser.parse_args()
+
+every = script_args.every
 from_spinup=False
-n_years = 10
-
+n_years = script_args.nyears
 domain_size = 3840
-factor = 4
-i_run = 'parameterized'
+factor = script_args.factor
+parameterization = factor > 0
+param_amp = script_args.param_amp
 
+if parameterization:
+    mlflow.set_experiment('parameterized')
+else:
+    mlflow.set_experiment('raw')
+mlflow.log_params(dict(every=every, n_years=n_years, factor=factor))
+if parameterization:
+    mlflow.log_params(dict(param_amp=param_amp))
 
-model = ShallowWaterModel(output_path=output_path,
+model = ShallowWaterModel(output_path=temp_dir,
                           Nx=domain_size // 10 // factor,
                           Ny=domain_size // 10 // factor,
                           Lx=domain_size * 1e3,
                           Ly=domain_size * 1e3,
                           Nt=n_years*360*24*60*60,
                           dump_freq=1*24*60*60, dump_output=True, tau0=0.12,
-                          model_name='eddy_permitting',
-                          run_name=str(i_run))
+                          model_name='eddy_permitting')
 
+if parameterization:
+    # TODO put into separate function, separate utils file
+    # Load the parameterization
+    # models_experiment_name = select_experiment()
+    # models_experiment = mlflow.get_experiment_by_name(models_experiment_name)
+    # models_experiment_id = models_experiment.experiment_id
+    cols = ['metrics.test loss', 'start_time', 'params.time_indices',
+            'params.model_cls_name', 'params.source.run_id', 'params.submodel']
+    # model_run = select_run(sort_by='start_time', cols=cols,
+    #                        experiment_ids=[models_experiment_id, ])
+    # TODO this is only  a temp fix
+    model_run = mlflow.search_runs(experiment_ids=('21',)).loc[11, :]
+    model_module_name = model_run['params.model_module_name']
+    model_cls_name = model_run['params.model_cls_name']
+    logging.info('Creating the neural network model')
+    model_cls = load_model_cls(model_module_name, model_cls_name)
 
-# Load the parameterization
-models_experiment_name = select_experiment()
-models_experiment = mlflow.get_experiment_by_name(models_experiment_name)
-models_experiment_id = models_experiment.experiment_id
-cols = ['metrics.test loss', 'start_time', 'params.time_indices',
-        'params.model_cls_name', 'params.source.run_id', 'params.submodel']
-model_run = select_run(sort_by='start_time', cols=cols,
-                       experiment_ids=[models_experiment_id, ])
-model_module_name = model_run['params.model_module_name']
-model_cls_name = model_run['params.model_cls_name']
-logging.info('Creating the neural network model')
-model_cls = load_model_cls(model_module_name, model_cls_name)
+    # Load the model's file
+    client = mlflow.tracking.MlflowClient()
+    model_file = client.download_artifacts(model_run.run_id,
+                                           'models/trained_model.pth')
+    transformation = pickle_artifact(model_run.run_id, 'models/transformation')
+    net = model_cls(2, 4, padding='same')
+    net.final_transformation = transformation
 
-
-# Load the model's file
-client = mlflow.tracking.MlflowClient()
-model_file = client.download_artifacts(model_run.run_id,
-                                       'models/trained_model.pth')
-transformation = pickle_artifact(model_run.run_id, 'models/transformation')
-net = model_cls(2, 4, padding='same')
-net.final_transformation = transformation
-
-# Load parameters of pre-trained model
-logging.info('Loading the neural net parameters')
-net.cpu()
-net.load_state_dict(torch.load(model_file))
-print('*******************')
-print(net)
-print('*******************')
-
+    # Load parameters of pre-trained model
+    logging.info('Loading the neural net parameters')
+    net.cpu()
+    net.load_state_dict(torch.load(model_file))
+    print('*******************')
+    print(net)
+    print('*******************')
 
 u, v, eta = model.set_initial_cond( init='rest' )
-
-parameterization = Parameterization(net, device, 2., every)
-model = WaterModelWithDLParameterization(model, parameterization)
+if parameterization:
+    parameterization = Parameterization(net, device, param_amp, every)
+    model = WaterModelWithDLParameterization(model, parameterization)
 
 if from_spinup:
     # load high-rez simulation, coarse-grain
@@ -111,16 +134,14 @@ if from_spinup:
     model.eta = eta
 
 last_percent = None
-
 for i in range( model.N_iter ) :
     percent = int(1000.0 * float(i) / model.N_iter)
     if percent != last_percent:
         print( "{}%".format( percent / 10 ) )
         last_percent = percent
-        plt.imshow(model.u2mat(u), vmin=-0.5, vmax=0.5, cmap='PuOr')
-        plt.show(block=False)
-        plt.draw()
-        plt.pause(1)
+        # plt.imshow(model.u2mat(u), vmin=-0.5, vmax=0.5, cmap='PuOr')
+        # plt.show(block=False)
+        # plt.draw()
 
     u_new, v_new, eta_new = model.integrate_forward( u, v, eta )
     
@@ -131,3 +152,5 @@ for i in range( model.N_iter ) :
     u = u_new
     v = v_new
     eta = eta_new
+mlflow.log_artifacts(temp_dir)
+print('Done.')
