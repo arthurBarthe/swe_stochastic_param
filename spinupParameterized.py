@@ -66,7 +66,7 @@ force_zero_sum = script_args.force_zero_sum
 
 from_spinup=False
 domain_size = 3840
-parameterization = factor > 0
+parameterization = every > 0
 
 if parameterization:
     mlflow.set_experiment('parameterized')
