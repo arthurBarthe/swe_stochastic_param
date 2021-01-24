@@ -125,7 +125,7 @@ if parameterization:
 u, v, eta = model.set_initial_cond( init='rest' )
 if parameterization:
     parameterization = Parameterization(net, device, param_amp, every,
-                                        force_zero_sum)
+                                        every_noise, force_zero_sum)
     model = WaterModelWithDLParameterization(model, parameterization)
 
 if from_spinup:
