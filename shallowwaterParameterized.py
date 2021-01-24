@@ -12,13 +12,16 @@ import numpy as np
 
 class Parameterization:
     def __init__(self, nn: Module, device, mult_factor: float = 1.,
-                 every: int = 1):
+                 every: int = 4, every_noise: int = 4, force_zero_sum: bool =
+                 False):
         self.nn = nn.to(device=device)
         self.device = device
         self.means = dict(s_x=None, s_y=None)
         self.betas = dict(s_x=None, s_y=None)
         self.mult_factor = mult_factor
         self.every = every
+        self.every_noise = every_noise
+        self.force_zero_sum = force_zero_sum
         self.counter_0 = 0
         self.counter_1 = 0
 
@@ -48,21 +51,23 @@ class Parameterization:
             beta_sx = self.betas['s_x']
             beta_sy = self.betas['s_y']
         if self.counter_1 == 0:
-            self.s_x = mean_sx + np.random.randn(*mean_sx.shape) / beta_sx
-            self.s_y = mean_sy + np.random.randn(*mean_sy.shape) / beta_sy
+            self.epsilon_x = np.random.randn(*mean_sx.shape)
+            self.epsilon_y = np.random.randn(*mean_sy.shape)
+        self.s_x = mean_sx + self.epsilon_x
+        self.s_y = mean_sy + self.epsilon_y
+        if self.force_zero_sum:
             self.s_x = self.force_zero_sum(self.s_x, mean_sx, 1 / beta_sx)
             self.s_y = self.force_zero_sum(self.s_y, mean_sy, 1 / beta_sy)
-            self.s_x *= 1e-7
-            self.s_y *= 1e-7
+        self.s_x *= 1e-7
+        self.s_y *= 1e-7
         self.counter_0 += 1
-        self.counter_0 %= self.every * 1
         self.counter_1 += 1
-        self.counter_1 %= 1
+        self.counter_0 %= self.every
+        self.counter_1 %= self.every_noise
         return self.s_x, self.s_y
 
     @staticmethod
     def force_zero_sum(data, mean, std):
-        return data
         sum_ = np.sum(data)
         sum_std = np.sum(std)
         data = data - sum_ * std / sum_std

@@ -29,8 +29,9 @@ from subgrid.analysis.utils import select_run, select_experiment
 from subgrid.testing.utils import pickle_artifact
 from netCDF4 import Dataset
 from os.path import join
-from utils import coarsen
 import tempfile
+
+from utils import BoundaryCondition
 
 # Make temporary dir to save outputs
 temp_dir = tempfile.mkdtemp(dir='/scratch/ag7531/temp/')
@@ -44,25 +45,39 @@ parser.add_argument('factor', type=int,
                     help='Coarse-graining factor')
 parser.add_argument('--every', type=int, default=1,
                     help='Parameter passed to the stochastic parameterization')
+parser.add_argument('--every_noise', type=int, default=1,
+                    help='Parameter passed to the stochastic parameterization')
 parser.add_argument('--param_amp', type=int, default=1.,
                     help='Multiplication factor applied to parameterization')
+parser.add_argument('--boundary', type=str, default='no-slip',
+                    help='either \'no-slip\' or \'free-slip\'')
+parser.add_argument('--force-zero-sum', type=bool, default=False,
+                    help='Whether we enforce that the integrate forcing is '
+                         'zero')
 script_args = parser.parse_args()
 
-every = script_args.every
-from_spinup=False
 n_years = script_args.nyears
-domain_size = 3840
 factor = script_args.factor
-parameterization = factor > 0
+every = script_args.every
+every_noise = script_args.every_noise
 param_amp = script_args.param_amp
+boundary_condition = BoundaryCondition.get(script_args.boundary)
+force_zero_sum = script_args.force_zero_sum
+
+from_spinup=False
+domain_size = 3840
+parameterization = factor > 0
 
 if parameterization:
     mlflow.set_experiment('parameterized')
 else:
     mlflow.set_experiment('raw')
-mlflow.log_params(dict(every=every, n_years=n_years, factor=factor))
+
+mlflow.log_params(dict(n_years=n_years, factor=factor,
+                       boundary=boundary_condition.name))
 if parameterization:
-    mlflow.log_params(dict(param_amp=param_amp))
+    mlflow.log_params(dict(param_amp=param_amp, every=every,
+                           every_noise=every_noise, zero_sum=force_zero_sum))
 
 model = ShallowWaterModel(output_path=temp_dir,
                           Nx=domain_size // 10 // factor,
@@ -71,7 +86,8 @@ model = ShallowWaterModel(output_path=temp_dir,
                           Ly=domain_size * 1e3,
                           Nt=n_years*360*24*60*60,
                           dump_freq=1*24*60*60, dump_output=True, tau0=0.12,
-                          model_name='eddy_permitting')
+                          model_name='eddy_permitting',
+                          bc=boundary_condition.value)
 
 if parameterization:
     # TODO put into separate function, separate utils file
@@ -108,7 +124,8 @@ if parameterization:
 
 u, v, eta = model.set_initial_cond( init='rest' )
 if parameterization:
-    parameterization = Parameterization(net, device, param_amp, every)
+    parameterization = Parameterization(net, device, param_amp, every,
+                                        force_zero_sum)
     model = WaterModelWithDLParameterization(model, parameterization)
 
 if from_spinup:
