@@ -15,9 +15,6 @@ sys.path.append('/home/ag7531/code/subgrid')
 import torch
 import logging
 
-import numpy as np
-import matplotlib.pyplot as plt
-import matplotlib
 import mlflow
 import argparse
 
@@ -36,16 +33,18 @@ from utils import BoundaryCondition
 # Make temporary dir to save outputs
 temp_dir = tempfile.mkdtemp(dir='/scratch/ag7531/temp/')
 
+# Use GPU if available
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
 parser = argparse.ArgumentParser()
 parser.add_argument('nyears', type=int,
                     help='Number of years the model is spun up for')
 parser.add_argument('factor', type=int,
-                    help='Coarse-graining factor')
-parser.add_argument('--every', type=int, default=1,
-                    help='Parameter passed to the stochastic parameterization')
-parser.add_argument('--every_noise', type=int, default=1,
+                    help='Coarse-graining factor. Keep to 4 for now.')
+parser.add_argument('--every', type=int, default=4,
+                    help='Parameter passed to the stochastic ' \
+                        'parameterization. Set to 0 for no parameterization.')
+parser.add_argument('--every_noise', type=int, default=4,
                     help='Parameter passed to the stochastic parameterization')
 parser.add_argument('--param_amp', type=int, default=1.,
                     help='Multiplication factor applied to parameterization')
@@ -64,17 +63,19 @@ param_amp = script_args.param_amp
 boundary_condition = BoundaryCondition.get(script_args.boundary)
 force_zero_sum = script_args.force_zero_sum
 
-from_spinup=False
 domain_size = 3840
 parameterization = every > 0
 
 if parameterization:
-    mlflow.set_experiment('parameterized')
+    logging.info('Running WITH parameterization')
 else:
-    mlflow.set_experiment('raw')
+    logging.info('Running with NO parameterization')
+if not input('Confirm by typing \'y\':').lower() == 'y':
+    sys.exit(1)
 
-mlflow.log_params(dict(n_years=n_years, factor=factor,
-                       boundary=boundary_condition.name))
+mlflow.set_experiment('parameterized')
+mlflow.log_params(dict(n_years=n_years, parameterization=parameterization,
+                       factor=factor, boundary=boundary_condition.name))
 if parameterization:
     mlflow.log_params(dict(param_amp=param_amp, every=every,
                            every_noise=every_noise, zero_sum=force_zero_sum))
@@ -91,16 +92,14 @@ model = ShallowWaterModel(output_path=temp_dir,
 
 if parameterization:
     # TODO put into separate function, separate utils file
-    # Load the parameterization
-    # models_experiment_name = select_experiment()
-    # models_experiment = mlflow.get_experiment_by_name(models_experiment_name)
-    # models_experiment_id = models_experiment.experiment_id
+    # Prompts the user to select a trained model to be used as parameterization
+    models_experiment_name = select_experiment()
+    models_experiment = mlflow.get_experiment_by_name(models_experiment_name)
+    models_experiment_id = models_experiment.experiment_id
     cols = ['metrics.test loss', 'start_time', 'params.time_indices',
             'params.model_cls_name', 'params.source.run_id', 'params.submodel']
-    # model_run = select_run(sort_by='start_time', cols=cols,
-    #                        experiment_ids=[models_experiment_id, ])
-    # TODO this is only  a temp fix
-    model_run = mlflow.search_runs(experiment_ids=('21',)).loc[11, :]
+    model_run = select_run(sort_by='start_time', cols=cols,
+                           experiment_ids=[models_experiment_id, ])
     model_module_name = model_run['params.model_module_name']
     model_cls_name = model_run['params.model_cls_name']
     logging.info('Creating the neural network model')
@@ -128,39 +127,15 @@ if parameterization:
                                         every_noise, force_zero_sum)
     model = WaterModelWithDLParameterization(model, parameterization)
 
-if from_spinup:
-    # load high-rez simulation, coarse-grain
-    files_dir = '/scratch/ag7531/shallowWaterModel/spinup1'
-    u_dataset = Dataset(join(files_dir, 'u_eddy_permitting__10yr_spinup.nc'))
-    v_dataset = Dataset(join(files_dir, 'v_eddy_permitting__10yr_spinup.nc'))
-    eta_dataset = Dataset(join(files_dir, 'eta_eddy_permitting__10yr_spinup.nc'))
-    
-    u = u_dataset.variables['u'][-1, ...]
-    v = v_dataset.variables['v'][-1, ...]
-    eta = eta_dataset.variables['eta'][-1, ...]
-    
-    u = coarsen(u, 4)
-    v = coarsen(v, 4)
-    eta = coarsen(eta, 4)
-    
-    u = np.squeeze(u.reshape((-1, 1)))
-    v = np.squeeze(v.reshape((-1, 1)))
-    eta = np.squeeze(eta.reshape((-1, 1)))
-    model.u = u
-    model.v = v
-    model.eta = eta
-
+# Time-integration of the model
 last_percent = None
 for i in range( model.N_iter ) :
-    percent = int(1000.0 * float(i) / model.N_iter)
+    percent = int(100.0 * float(i) / model.N_iter)
     if percent != last_percent:
-        print( "{}%".format( percent / 10 ) )
+        print( "{}%".format(percent))
         last_percent = percent
-        # plt.imshow(model.u2mat(u), vmin=-0.5, vmax=0.5, cmap='PuOr')
-        # plt.show(block=False)
-        # plt.draw()
 
-    u_new, v_new, eta_new = model.integrate_forward( u, v, eta )
+    u_new, v_new, eta_new = model.integrate_forward(u, v, eta)
     
     if u_new is None :
         print( "Integration finished!" )
@@ -169,5 +144,7 @@ for i in range( model.N_iter ) :
     u = u_new
     v = v_new
     eta = eta_new
+
+# log all outputs
 mlflow.log_artifacts(temp_dir)
 print('Done.')
