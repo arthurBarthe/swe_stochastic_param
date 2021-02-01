@@ -9,7 +9,7 @@ from torch.nn.modules import Module
 import torch.tensor
 import numpy as np
 
-from .shallowwater import ShallowWaterModel
+from shallowwater import ShallowWaterModel
 
 
 class Parameterization:
