@@ -91,9 +91,7 @@ model = ShallowWaterModel(output_path=temp_dir,
 if parameterization:
     # TODO put into separate function, separate utils file
     # Prompts the user to select a trained model to be used as parameterization
-    models_experiment_name = select_experiment()
-    models_experiment = mlflow.get_experiment_by_name(models_experiment_name)
-    models_experiment_id = models_experiment.experiment_id
+    models_experiment_id, _ = select_experiment()
     cols = ['metrics.test loss', 'start_time', 'params.time_indices',
             'params.model_cls_name', 'params.source.run_id', 'params.submodel']
     model_run = select_run(sort_by='start_time', cols=cols,
