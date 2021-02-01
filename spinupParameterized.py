@@ -70,8 +70,6 @@ if parameterization:
     logging.info('Running WITH parameterization')
 else:
     logging.info('Running with NO parameterization')
-if not input('Confirm by typing \'y\':').lower() == 'y':
-    sys.exit(1)
 
 mlflow.set_experiment('parameterized')
 mlflow.log_params(dict(n_years=n_years, parameterization=parameterization,
