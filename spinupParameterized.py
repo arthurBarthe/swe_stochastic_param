@@ -22,7 +22,7 @@ from shallowwater import ShallowWaterModel
 from shallowwaterParameterized import (WaterModelWithDLParameterization,
                                        Parameterization)
 from subgrid.models.utils import load_model_cls
-from subgrid.analysis.utils import select_run, select_experiment
+from subgrid.utils import select_experiment, select_run
 from subgrid.testing.utils import pickle_artifact
 from netCDF4 import Dataset
 from os.path import join
