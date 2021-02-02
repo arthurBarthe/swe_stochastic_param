@@ -17,10 +17,13 @@ Important departures from the original model:
 
 """
 
+from os.path import join
+
 import numpy as np
 import pickle
 from scipy import sparse
 from netCDF4 import Dataset
+
 
 
 class ShallowWaterModel :
@@ -286,12 +289,17 @@ class ShallowWaterModel :
             # creating the netcdf files
             ncformat = 'NETCDF4'
             filename = self.model_name + '_' + self.run_name + '.nc'
-            self.ncu['file'] = Dataset( self.output_path + 'u_' + filename, 'w', format=ncformat )
-            self.ncv['file'] = Dataset( self.output_path + 'v_' + filename, 'w', format=ncformat )
-            self.nceta['file'] = Dataset( self.output_path + 'eta_' + filename, 'w', format=ncformat )
+            self.ncu['file'] = Dataset( join(self.output_path, 'u_' +
+                                             filename), 'w', format=ncformat )
+            self.ncv['file'] = Dataset( join(self.output_path, 'v_' +
+                                             filename), 'w', format=ncformat )
+            self.nceta['file'] = Dataset( join(self.output_path, 'eta_' +
+                                          filename), 'w', format=ncformat )
 
-            self.ncdu['file'] = Dataset( self.output_path + 'du_' + filename, 'w', format=ncformat )
-            self.ncdv['file'] = Dataset( self.output_path + 'dv_' + filename, 'w', format=ncformat )
+            self.ncdu['file'] = Dataset( join(self.output_path, 'du_' +
+                                         filename), 'w', format=ncformat )
+            self.ncdv['file'] = Dataset( join(self.output_path, 'dv_' +
+                                         filename), 'w', format=ncformat )
 
             
             print( "\t ...config_output:: files to be written to {}.".format( self.output_path ) )
