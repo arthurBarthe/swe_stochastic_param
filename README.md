@@ -6,4 +6,4 @@ Entry points:
   - pass --every 0 to run without parameterization
   - pass --every 1 to run with parameterization, or any positive integer (sets how often the subgrid forcing is updated)
 
-shallowwatermodel.py contains the default model, shallowwatermodelParameterized contains the model with the parameterization
+shallowwater.py contains the default model, shallowwaterParameterized contains the model with the parameterization
