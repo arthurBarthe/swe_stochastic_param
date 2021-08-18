@@ -17,7 +17,7 @@ from_spinup = False
 n_years = 10
 
 domain_size = 3840
-factor = 4
+factor = 1
 i_run = 'non_parameterized_'
 
 
